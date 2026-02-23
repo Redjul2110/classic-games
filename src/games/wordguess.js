@@ -16,16 +16,18 @@ const LETTER_FREQ = 'ETAOINSHRDLCUMWFGYPBVKJXQZ'.split('');
 
 const HANGMAN_SVG = (wrong) => `
   <svg class="hangman-svg" viewBox="0 0 200 220" width="180" height="180" xmlns="http://www.w3.org/2000/svg">
-    <line x1="20" y1="210" x2="180" y2="210" stroke="#555" stroke-width="4" stroke-linecap="round"/>
-    <line x1="60" y1="210" x2="60" y2="20" stroke="#555" stroke-width="4" stroke-linecap="round"/>
-    <line x1="60" y1="20" x2="130" y2="20" stroke="#555" stroke-width="4" stroke-linecap="round"/>
-    <line x1="130" y1="20" x2="130" y2="45" stroke="#555" stroke-width="4" stroke-linecap="round"/>
-    ${wrong >= 1 ? `<circle cx="130" cy="62" r="16" stroke="#e74c3c" stroke-width="3" fill="none"/>` : ''}
-    ${wrong >= 2 ? `<line x1="130" y1="78" x2="130" y2="130" stroke="#e74c3c" stroke-width="3" stroke-linecap="round"/>` : ''}
-    ${wrong >= 3 ? `<line x1="130" y1="95" x2="100" y2="115" stroke="#e74c3c" stroke-width="3" stroke-linecap="round"/>` : ''}
-    ${wrong >= 4 ? `<line x1="130" y1="95" x2="160" y2="115" stroke="#e74c3c" stroke-width="3" stroke-linecap="round"/>` : ''}
-    ${wrong >= 5 ? `<line x1="130" y1="130" x2="105" y2="160" stroke="#e74c3c" stroke-width="3" stroke-linecap="round"/>` : ''}
-    ${wrong >= 6 ? `<line x1="130" y1="130" x2="155" y2="160" stroke="#e74c3c" stroke-width="3" stroke-linecap="round"/>` : ''}
+    ${wrong >= 1 ? `<line x1="20" y1="210" x2="180" y2="210" stroke="#555" stroke-width="4" stroke-linecap="round"/>` : ''}
+    ${wrong >= 2 ? `<line x1="60" y1="210" x2="60" y2="20" stroke="#555" stroke-width="4" stroke-linecap="round"/>` : ''}
+    ${wrong >= 3 ? `<line x1="60" y1="20" x2="130" y2="20" stroke="#555" stroke-width="4" stroke-linecap="round"/>` : ''}
+    ${wrong >= 4 ? `<line x1="130" y1="20" x2="130" y2="45" stroke="#555" stroke-width="4" stroke-linecap="round"/>` : ''}
+    ${wrong >= 5 ? `<circle cx="130" cy="62" r="16" stroke="#e74c3c" stroke-width="3" fill="none"/>` : ''}
+    ${wrong >= 6 ? `<line x1="130" y1="78" x2="130" y2="130" stroke="#e74c3c" stroke-width="3" stroke-linecap="round"/>` : ''}
+    ${wrong >= 7 ? `<line x1="130" y1="95" x2="100" y2="115" stroke="#e74c3c" stroke-width="3" stroke-linecap="round"/>` : ''}
+    ${wrong >= 8 ? `<line x1="130" y1="95" x2="160" y2="115" stroke="#e74c3c" stroke-width="3" stroke-linecap="round"/>` : ''}
+    ${wrong >= 9 ? `<line x1="130" y1="130" x2="105" y2="160" stroke="#e74c3c" stroke-width="3" stroke-linecap="round"/>` : ''}
+    ${wrong >= 10 ? `<line x1="130" y1="130" x2="155" y2="160" stroke="#e74c3c" stroke-width="3" stroke-linecap="round"/>` : ''}
+    ${wrong >= 11 ? `<circle cx="124" cy="58" r="1.5" fill="#e74c3c"/> <circle cx="136" cy="58" r="1.5" fill="#e74c3c"/>` : ''}
+    ${wrong >= 12 ? `<path d="M 125 68 Q 130 64 135 68" stroke="#e74c3c" stroke-width="2" fill="none"/>` : ''}
   </svg>`;
 
 export function renderWordGuess(container, onBack, multiplayer) {
@@ -34,7 +36,7 @@ export function renderWordGuess(container, onBack, multiplayer) {
 
   let word = '';
   let guessed = new Set();
-  let maxWrong = 6;
+  let maxWrong = 12;
   let scores = { teamWin: 0, aiLoss: 0 };
   let gameOver = false;
   let channel = null;

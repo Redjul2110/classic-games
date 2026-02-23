@@ -141,6 +141,16 @@ function getAllMoves(board, color) {
     return moves;
 }
 
+function hasOnlyKing(board, color) {
+    let pieceCount = 0;
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            if (board[r][c] && colorOf(board[r][c]) === color) pieceCount++;
+        }
+    }
+    return pieceCount === 1;
+}
+
 function applyMove(board, move) {
     const [fr, fc, tr, tc] = move;
     const nb = cloneB(board);
@@ -356,15 +366,16 @@ export function renderChess(container, onBack, multiplayer) {
         // Check for game end
         const opp = opponent(color);
         const oppMoves = getAllMoves(board, opp);
-        if (oppMoves.length === 0) {
+        const oppLostByRule = hasOnlyKing(board, opp);
+        if (oppMoves.length === 0 || oppLostByRule) {
             gameOver = true;
-            if (isInCheck(board, opp)) {
-                // Checkmate
+            if (isInCheck(board, opp) || oppLostByRule) {
+                // Checkmate or lone king
                 const winner = color === myColor ? 'player' : (isMp ? 'opponent' : 'ai');
                 if (winner === 'player') scores.player++; else scores.ai++;
                 render();
 
-                const msg = winner === 'player' ? 'Checkmate! You Win! ♔' : (isMp ? 'Checkmate! Opponent Wins! ♚' : 'Checkmate! AI Wins! ♚');
+                const msg = winner === 'player' ? 'Victory! You Win! ♔' : (isMp ? 'Defeat! Opponent Wins! ♚' : 'Defeat! AI Wins! ♚');
                 const toast = winner === 'player' ? 'success' : 'error';
                 showToast(msg, toast);
 
