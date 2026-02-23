@@ -89,7 +89,7 @@ function buildSidebarHTML() {
   return `
     <div class="sidebar-header">
       <div class="sidebar-brand">
-        <span style="color:var(--red-primary)">RedJ</span><span style="color:var(--orange-primary)">Games</span>
+        <span style="color:var(--red-primary)">RedJGames</span>
       </div>
       <button class="sidebar-close-btn" id="sidebar-close" title="Close">${UI_ICONS.close}</button>
     </div>
