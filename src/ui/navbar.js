@@ -10,7 +10,7 @@ export function renderNavbar(container, { onProfileClick, onChatClick, onSignOut
   container.innerHTML = `
     <nav class="navbar">
       <div class="navbar-brand" style="padding-left:44px">
-        <span class="brand-red">RedJ</span><span class="brand-orange">Games</span>
+        <span class="brand-red">RedJGames</span>
         <span class="brand-classic">CLASSIC</span>
       </div>
       <div class="navbar-actions">
