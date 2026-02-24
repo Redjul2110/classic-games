@@ -2711,6 +2711,7 @@ img {
   width: min(480px, 90vw);
   box-sizing: border-box;
   box-shadow: var(--shadow-card);
+  container-type: inline-size;
 }
 
 .chess-cell {
@@ -2722,7 +2723,8 @@ img {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(1.8rem, 8vw, 3rem);
+  font-size: 11cqw;
+  line-height: 1;
   cursor: pointer;
   user-select: none;
   position: relative;

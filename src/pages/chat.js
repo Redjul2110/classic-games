@@ -85,7 +85,7 @@ export function renderChatPage(container, { onBack, onProfileClick, onChatClick,
 function renderMessageList(container, messages) {
   const myId = getUserId();
   if (!messages || messages.length === 0) {
-    container.innerHTML = `<div class="chat-system-msg">No messages yet. Be the first! [GAME]</div>`;
+    container.innerHTML = `<div class="chat-system-msg">No messages yet. Be the first! 🎮</div>`;
     return;
   }
   container.innerHTML = messages.map(m => {

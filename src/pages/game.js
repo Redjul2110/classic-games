@@ -3,7 +3,7 @@
 
 import { renderTicTacToe } from '../games/tictactoe.js';
 import { renderConnectFour } from '../games/connectfour.js';
-import { renderChess } from '../games/chess.js';
+import { renderChess } from '../games/chess.js?v=5';
 import { renderCheckers } from '../games/checkers.js';
 import { renderBattleship } from '../games/battleship.js';
 import { renderMinesweeper } from '../games/minesweeper.js';
