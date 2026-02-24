@@ -101,6 +101,13 @@ img {
   min-height: 100vh;
 }
 
+.game-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 80px);
+  width: 100%;
+}
+
 .flex {
   display: flex;
 }
@@ -555,6 +562,18 @@ img {
   background: var(--border-subtle);
 }
 
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 24px 0;
+  gap: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
 .guest-btn {
   width: 100%;
   display: flex;
@@ -575,6 +594,36 @@ img {
   border-color: rgba(230, 126, 34, 0.4);
   color: var(--orange-primary);
   background: rgba(230, 126, 34, 0.05);
+}
+
+.guest-btn-primary {
+  padding: 14px 20px;
+  font-size: 1.05rem;
+  border: 2px solid transparent;
+  background: linear-gradient(var(--bg-card), var(--bg-card)) padding-box,
+    linear-gradient(135deg, var(--red-primary), var(--orange-primary)) border-box;
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(225, 29, 72, 0.15);
+  animation: guestPulse 2s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+@keyframes guestPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.5);
+  }
+
+  100% {
+    box-shadow: 0 0 0 12px rgba(225, 29, 72, 0);
+  }
+}
+
+.guest-btn-primary:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.25);
+  background: linear-gradient(var(--bg-card-hover), var(--bg-card-hover)) padding-box,
+    linear-gradient(135deg, var(--red-light), var(--orange-primary)) border-box;
+  color: #fff;
+  animation: none;
 }
 
 .guest-icon {
@@ -995,6 +1044,68 @@ img {
   flex-shrink: 0;
   color: #fff;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.difficulty-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.diff-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.diff-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.1) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.diff-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--primary-color);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 10px rgba(138, 43, 226, 0.3);
+}
+
+.diff-card:hover::before {
+  opacity: 1;
+}
+
+.diff-card[data-diff="impossible"]:hover {
+  border-color: var(--red-light);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 10px rgba(255, 68, 68, 0.3);
+}
+
+.diff-card-header {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.diff-card-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 .player-info {
@@ -2598,18 +2709,33 @@ img {
   border-radius: 4px;
   overflow: hidden;
   width: min(480px, 90vw);
+  box-sizing: border-box;
   box-shadow: var(--shadow-card);
 }
 
 .chess-cell {
   aspect-ratio: 1;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(1.2rem, 4vw, 2rem);
+  font-size: clamp(1.8rem, 8vw, 3rem);
   cursor: pointer;
-  transition: all 0.15s ease;
   user-select: none;
+  position: relative;
+}
+
+.chess-cell.white-piece {
+  color: #ffffff;
+  text-shadow: 0 0 2px #000, 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.chess-cell.black-piece {
+  color: #000000;
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
 }
 
 .chess-cell.light {
@@ -2625,16 +2751,21 @@ img {
 }
 
 .chess-cell.selected {
-  background: rgba(230, 126, 34, 0.7) !important;
+  background: rgba(4, 0, 255, 0.269) !important;
 }
 
 .chess-cell.valid-move {
-  background: rgba(46, 204, 113, 0.4) !important;
+  background: rgb(6, 179, 0) !important;
+  cursor: pointer;
+}
+
+.chess-cell.valid-move-info {
+  background: rgb(255, 0, 0) !important;
   cursor: pointer;
 }
 
 .chess-cell.last-move {
-  outline: 2px inset rgba(255, 255, 0, 0.4);
+  outline: 2px inset rgba(0, 234, 255, 0.4);
 }
 
 /* ── Checkers Board ── */
@@ -3738,7 +3869,7 @@ img {
 /* Game boards — clamp to viewport width */
 .chess-board,
 .checkers-board {
-  width: min(480px, calc(100vw - 32px));
+  width: min(480px, calc(100vw - 16px));
   max-width: 100%;
 }
 

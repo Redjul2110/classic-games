@@ -20,6 +20,8 @@ export function renderTicTacToe(container, onBack, multiplayer) {
 
   let gameOver = false;
   let aiMovePending = false;
+  let aiDifficulty = 'hard'; // default for tic-tac-toe
+  let diffSelected = isMp; // In MP, bypass difficulty select
   let scores = { player: 0, opponent: 0, draws: 0 };
   let channel = null;
 
@@ -69,58 +71,126 @@ export function renderTicTacToe(container, onBack, multiplayer) {
     onBack();
   }
 
+  let isInitialized = false;
+
   function render() {
+    if (!diffSelected) {
+      container.innerHTML = `
+        <div class="game-screen">
+          <div class="game-screen-header">
+            <button class="btn btn-ghost btn-sm" id="back-btn">← Back</button>
+            <div class="game-screen-title">
+              Tic-Tac-Toe
+              <div class="game-screen-badge vs-ai">VS AI</div>
+            </div>
+          </div>
+          <div class="difficulty-screen" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; gap: 30px; padding: 24px;">
+            <h2 class="difficulty-title">Select AI Difficulty</h2>
+            <div class="difficulty-options">
+              <div class="diff-card" data-diff="easy">
+                <div class="diff-card-header">Easy</div>
+                <div class="diff-card-desc">Random moves. A relaxing game.</div>
+              </div>
+              <div class="diff-card" data-diff="hard">
+                <div class="diff-card-header">Hard</div>
+                <div class="diff-card-desc">50% chance the AI makes the best move.</div>
+              </div>
+              <div class="diff-card" data-diff="impossible" style="border-bottom: 3px solid var(--red-primary);">
+                <div class="diff-card-header">Impossible</div>
+                <div class="diff-card-desc">Perfect Minimax AI. You cannot win.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      container.querySelector('#back-btn').addEventListener('click', handleExit);
+      container.querySelectorAll('.diff-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+          aiDifficulty = e.currentTarget.dataset.diff;
+          diffSelected = true;
+          resetBoard(false);
+        });
+      });
+      return;
+    }
+
     const isPlayerTurn = !gameOver && currentTurnSymbol === playerSymbol;
 
-    container.innerHTML = `
-      <div class="game-screen">
-        <div class="game-screen-header">
-          <button class="btn btn-ghost btn-sm" id="back-btn">← Back</button>
-          <div class="game-screen-title">
-            Tic-Tac-Toe
-          <div class="game-screen-badge ${isMp ? 'vs-player' : 'vs-ai'}">${isMp ? 'Multiplayer' : 'VS AI'}</div>
-          </div>
-        </div>
-        <div style="flex:1; display:flex; flex-direction:column; align-items:center; padding:24px; gap:20px;">
-          <div class="score-board">
-            <div class="score-item">
-              <div class="score-value player-score">${scores.player}</div>
-              <div class="score-label">You (${playerSymbol})</div>
-            </div>
-            <div class="score-divider">–</div>
-            <div class="score-item">
-              <div class="score-value" style="color:var(--text-muted);">${scores.draws}</div>
-              <div class="score-label">Draws</div>
-            </div>
-            <div class="score-divider">–</div>
-            <div class="score-item">
-              <div class="score-value ai-score">${scores.opponent}</div>
-              <div class="score-label">${isMp ? 'Opponent' : 'AI'} (${opponentSymbol})</div>
-            </div>
-          </div>
+    if (isInitialized) {
+      // Soft Update: Nur Board und Texte tauschen (verhindert DOM Thrashing / Glitch)
+      container.querySelector('.player-score').textContent = scores.player;
+      container.querySelector('.ai-score').textContent = scores.opponent;
 
-          <div class="game-status-bar" style="width:100%;max-width:400px;border-radius:var(--radius-md);">
-            <div class="turn-indicator">
-              <span class="turn-dot ${!isPlayerTurn ? 'ai' : ''}"></span>
-              ${isPlayerTurn ? 'Your turn' : (isMp ? 'Opponent thinking…' : '[AI] AI thinking…')}
-            </div>
-            ${isMp && !isHost ? '' : '<button class="btn btn-ghost btn-sm" id="new-game-btn">New Game</button>'}
-          </div>
+      const turnIndicator = container.querySelector('.turn-indicator');
+      if (turnIndicator) {
+        turnIndicator.innerHTML = `
+          <span class="turn-dot ${!isPlayerTurn ? 'ai' : ''}"></span>
+          ${isPlayerTurn ? 'Your turn' : (isMp ? 'Opponent thinking…' : '[AI] AI thinking…')}
+        `;
+      }
 
-          <div class="ttt-board" id="ttt-board">
-            ${board.map((cell, i) => `
-              <div class="ttt-cell ${cell ? 'taken ' + cell.toLowerCase() : ''}" data-idx="${i}">
-                ${cell || ''}
+      const tttBoard = container.querySelector('#ttt-board');
+      if (tttBoard) {
+        tttBoard.innerHTML = board.map((cell, i) => `
+          <div class="ttt-cell ${cell ? 'taken ' + cell.toLowerCase() : ''}" data-idx="${i}">
+            ${cell || ''}
+          </div>
+        `).join('');
+      }
+    } else {
+      // Hard Update: Komplette UI generieren
+      isInitialized = true;
+      container.innerHTML = `
+        <div class="game-screen">
+          <div class="game-screen-header">
+            <button class="btn btn-ghost btn-sm" id="back-btn">← Back</button>
+            <div class="game-screen-title" style="display:flex;align-items:center;gap:12px;">
+              Tic-Tac-Toe
+              <div class="game-screen-badge ${isMp ? 'vs-player' : 'vs-ai'}">${isMp ? 'Multiplayer' : 'VS AI'}</div>
+              ${!isMp ? `<div class="game-screen-badge" style="background:var(--bg-glass);border:1px solid var(--border-accent);color:var(--text-secondary);">${aiDifficulty.toUpperCase()}</div>` : ''}
+            </div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; padding:24px; gap:20px;">
+            <div class="score-board">
+              <div class="score-item">
+                <div class="score-value player-score">${scores.player}</div>
+                <div class="score-label">You (${playerSymbol})</div>
               </div>
-            `).join('')}
+              <div class="score-divider">–</div>
+              <div class="score-item">
+                <div class="score-value" style="color:var(--text-muted);">${scores.draws}</div>
+                <div class="score-label">Draws</div>
+              </div>
+              <div class="score-divider">–</div>
+              <div class="score-item">
+                <div class="score-value ai-score">${scores.opponent}</div>
+                <div class="score-label">${isMp ? 'Opponent' : 'AI'} (${opponentSymbol})</div>
+              </div>
+            </div>
+
+            <div class="game-status-bar" style="width:100%;max-width:400px;border-radius:var(--radius-md);">
+              <div class="turn-indicator">
+                <span class="turn-dot ${!isPlayerTurn ? 'ai' : ''}"></span>
+                ${isPlayerTurn ? 'Your turn' : (isMp ? 'Opponent thinking…' : '[AI] AI thinking…')}
+              </div>
+              ${isMp && !isHost ? '' : '<button class="btn btn-ghost btn-sm" id="new-game-btn">New Game</button>'}
+            </div>
+
+            <div class="ttt-board" id="ttt-board">
+              ${board.map((cell, i) => `
+                <div class="ttt-cell ${cell ? 'taken ' + cell.toLowerCase() : ''}" data-idx="${i}">
+                  ${cell || ''}
+                </div>
+              `).join('')}
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
 
-    container.querySelector('#back-btn').addEventListener('click', handleExit);
-    if (isMp ? isHost : true) {
-      container.querySelector('#new-game-btn')?.addEventListener('click', newGame);
+      container.querySelector('#back-btn').addEventListener('click', handleExit);
+      if (isMp ? isHost : true) {
+        container.querySelector('#new-game-btn')?.addEventListener('click', newGame);
+      }
     }
 
     if (isPlayerTurn) {
@@ -149,7 +219,27 @@ export function renderTicTacToe(container, onBack, multiplayer) {
 
   function aiMove() {
     if (gameOver || isMp) return;
-    const move = minimaxBestMove(board, opponentSymbol, playerSymbol);
+
+    let move = -1;
+    const emptySpots = board.map((c, i) => c === null ? i : null).filter(i => i !== null);
+
+    if (emptySpots.length === 0) return;
+
+    if (aiDifficulty === 'easy') {
+      // 100% Random
+      move = emptySpots[Math.floor(Math.random() * emptySpots.length)];
+    } else if (aiDifficulty === 'hard') {
+      // 50% Random, 50% Perfect
+      if (Math.random() < 0.5) {
+        move = emptySpots[Math.floor(Math.random() * emptySpots.length)];
+      } else {
+        move = minimaxBestMove(board, opponentSymbol, playerSymbol);
+      }
+    } else {
+      // Impossible: 100% Perfect Minimax
+      move = minimaxBestMove(board, opponentSymbol, playerSymbol);
+    }
+
     if (move === -1) return;
     board[move] = opponentSymbol;
     currentTurnSymbol = playerSymbol;

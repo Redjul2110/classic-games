@@ -5,7 +5,7 @@ import { signIn, signUp, createGuestSession } from '../auth.js';
 import { showToast } from '../ui/toast.js';
 
 export function renderLoginPage(container) {
-    container.innerHTML = `
+  container.innerHTML = `
     <div class="login-page">
       <div class="login-bg-grid"></div>
       <div class="login-container">
@@ -20,6 +20,12 @@ export function renderLoginPage(container) {
         </div>
 
         <div class="login-card">
+          <button class="guest-btn guest-btn-primary" id="guest-btn">
+            <span>Play As Guest</span>
+          </button>
+          
+          <div class="divider">or create an account</div>
+
           <div class="auth-tabs">
             <div class="auth-tab active" id="tab-signin" role="button" tabindex="0">Sign In</div>
             <div class="auth-tab" id="tab-signup" role="button" tabindex="0">Create Account</div>
@@ -60,97 +66,90 @@ export function renderLoginPage(container) {
               Create Account
             </button>
           </form>
-
-          <div class="divider">or</div>
-
-          <button class="guest-btn" id="guest-btn">
-            <span class="guest-icon">👤</span>
-            <span>Continue as Guest</span>
-          </button>
         </div>
       </div>
     </div>
   `;
 
-    // Tab switching
-    const tabSignIn = container.querySelector('#tab-signin');
-    const tabSignUp = container.querySelector('#tab-signup');
-    const formSignIn = container.querySelector('#form-signin');
-    const formSignUp = container.querySelector('#form-signup');
+  // Tab switching
+  const tabSignIn = container.querySelector('#tab-signin');
+  const tabSignUp = container.querySelector('#tab-signup');
+  const formSignIn = container.querySelector('#form-signin');
+  const formSignUp = container.querySelector('#form-signup');
 
-    tabSignIn.addEventListener('click', () => {
-        tabSignIn.classList.add('active');
-        tabSignUp.classList.remove('active');
-        formSignIn.classList.remove('hidden');
-        formSignUp.classList.add('hidden');
-    });
+  tabSignIn.addEventListener('click', () => {
+    tabSignIn.classList.add('active');
+    tabSignUp.classList.remove('active');
+    formSignIn.classList.remove('hidden');
+    formSignUp.classList.add('hidden');
+  });
 
-    tabSignUp.addEventListener('click', () => {
-        tabSignUp.classList.add('active');
-        tabSignIn.classList.remove('active');
-        formSignUp.classList.remove('hidden');
-        formSignIn.classList.add('hidden');
-    });
+  tabSignUp.addEventListener('click', () => {
+    tabSignUp.classList.add('active');
+    tabSignIn.classList.remove('active');
+    formSignUp.classList.remove('hidden');
+    formSignIn.classList.add('hidden');
+  });
 
-    // Sign In
-    formSignIn.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = container.querySelector('#signin-btn');
-        const errorEl = container.querySelector('#signin-error');
-        errorEl.classList.add('hidden');
+  // Sign In
+  formSignIn.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = container.querySelector('#signin-btn');
+    const errorEl = container.querySelector('#signin-error');
+    errorEl.classList.add('hidden');
 
-        const email = container.querySelector('#signin-email').value.trim();
-        const password = container.querySelector('#signin-password').value;
+    const email = container.querySelector('#signin-email').value.trim();
+    const password = container.querySelector('#signin-password').value;
 
-        btn.disabled = true;
-        btn.textContent = 'Signing in…';
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
 
-        try {
-            await signIn(email, password);
-            // Auth state change will trigger router update
-        } catch (err) {
-            errorEl.textContent = err.message || 'Sign in failed. Please try again.';
-            errorEl.classList.remove('hidden');
-            btn.disabled = false;
-            btn.textContent = 'Sign In';
-        }
-    });
+    try {
+      await signIn(email, password);
+      // Auth state change will trigger router update
+    } catch (err) {
+      errorEl.textContent = err.message || 'Sign in failed. Please try again.';
+      errorEl.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    }
+  });
 
-    // Sign Up
-    formSignUp.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = container.querySelector('#signup-btn');
-        const errorEl = container.querySelector('#signup-error');
-        errorEl.classList.add('hidden');
+  // Sign Up
+  formSignUp.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = container.querySelector('#signup-btn');
+    const errorEl = container.querySelector('#signup-error');
+    errorEl.classList.add('hidden');
 
-        const username = container.querySelector('#signup-username').value.trim();
-        const email = container.querySelector('#signup-email').value.trim();
-        const password = container.querySelector('#signup-password').value;
+    const username = container.querySelector('#signup-username').value.trim();
+    const email = container.querySelector('#signup-email').value.trim();
+    const password = container.querySelector('#signup-password').value;
 
-        if (username.length < 3) {
-            errorEl.textContent = 'Username must be at least 3 characters.';
-            errorEl.classList.remove('hidden');
-            return;
-        }
+    if (username.length < 3) {
+      errorEl.textContent = 'Username must be at least 3 characters.';
+      errorEl.classList.remove('hidden');
+      return;
+    }
 
-        btn.disabled = true;
-        btn.textContent = 'Creating account…';
+    btn.disabled = true;
+    btn.textContent = 'Creating account…';
 
-        try {
-            await signUp(email, password, username);
-            showToast('Account created! Check your email for verification.', 'success');
-        } catch (err) {
-            errorEl.textContent = err.message || 'Sign up failed. Please try again.';
-            errorEl.classList.remove('hidden');
-            btn.disabled = false;
-            btn.textContent = 'Create Account';
-        }
-    });
+    try {
+      await signUp(email, password, username);
+      showToast('Account created! Check your email for verification.', 'success');
+    } catch (err) {
+      errorEl.textContent = err.message || 'Sign up failed. Please try again.';
+      errorEl.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Create Account';
+    }
+  });
 
-    // Guest
-    container.querySelector('#guest-btn').addEventListener('click', () => {
-        createGuestSession();
-        showToast('Playing as Guest. Stats reset daily.', 'info');
-        // Router will handle navigation via auth state change
-    });
+  // Guest
+  container.querySelector('#guest-btn').addEventListener('click', () => {
+    createGuestSession();
+    showToast('Playing as Guest. Stats reset daily.', 'info');
+    // Router will handle navigation via auth state change
+  });
 }
