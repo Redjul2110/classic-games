@@ -4,6 +4,7 @@
 import { showToast } from '../ui/toast.js';
 import { getDisplayName, getUserId } from '../auth.js';
 import { ogClient } from '../supabase.js';
+import { escapeHtml } from '../utils.js';
 
 const COLORS = ['red', 'blue', 'green', 'yellow'];
 const VALUES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'Skip', 'Reverse', 'Draw2'];
@@ -207,7 +208,7 @@ export function renderCardClash(container, onBack, multiplayer) {
           <div style="display:flex;gap:12px;overflow-x:auto;width:100%;justify-content:center;margin-bottom:10px;padding:8px 0;">
             ${others.map(id => `
                 <div style="background:var(--bg-card);padding:8px 16px;border-radius:12px;border:1px solid ${id === activeId ? 'var(--primary-color)' : 'rgba(255,255,255,0.1)'};text-align:center;min-width:100px;">
-                    <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:4px;">${playerNames[id]} ${id === activeId ? '🔄' : ''}</div>
+                    <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:4px;">${escapeHtml(playerNames[id] || '')} ${id === activeId ? '🔄' : ''}</div>
                     <div style="font-size:1.1rem;font-weight:700;">${hands[id].length} 🃏</div>
                 </div>
             `).join('')}
@@ -225,7 +226,7 @@ export function renderCardClash(container, onBack, multiplayer) {
           </div>
           
           <div style="font-size:0.88rem;font-weight:700;color:${isMyTurn ? 'var(--primary-color)' : 'var(--text-secondary)'};margin-bottom:12px;text-align:center;">
-            ${isMyTurn ? '👤 Your turn — play or draw' : `⏳ ${activeName} is playing… (${direction === 1 ? '▶' : '◀'})`}
+            ${isMyTurn ? '👤 Your turn — play or draw' : `⏳ ${escapeHtml(activeName)} is playing… (${direction === 1 ? '▶' : '◀'})`}
           </div>
           
           <div class="player-hand" id="player-hand">
@@ -373,7 +374,7 @@ export function renderCardClash(container, onBack, multiplayer) {
     gameOver = true;
     render();
     const isMe = winnerId === myId;
-    const msg = isMe ? 'You win! ★' : `${playerNames[winnerId]} wins! 🏆`;
+    const msg = isMe ? 'You win! ★' : `${escapeHtml(playerNames[winnerId] || '')} wins! 🏆`;
     if (isMe) import('../ui/animations.js').then(({ triggerConfetti }) => triggerConfetti());
     showToast(msg, isMe ? 'success' : 'error');
     setTimeout(() => {

@@ -5,6 +5,7 @@
 import { rjClient } from './supabase.js';
 import { getUserId, getDisplayName, isAuthenticated, isGuest } from './auth.js';
 import { showToast } from './ui/toast.js';
+import { escapeHtml } from './utils.js';
 
 let chatChannel = null;
 let chatMessages = [];
@@ -12,6 +13,11 @@ let onMessageCallback = null;
 let unreadCount = 0;
 let onUnreadUpdate = null;
 let pollInterval = null;
+
+// ─── Anti-Spam State ───
+let lastChatTime = 0;
+let spamWarningCount = 0;
+let chatTimeoutUntil = 0;
 
 // ─── Load existing messages ───
 export async function loadChatMessages(limit = 60) {
@@ -53,6 +59,30 @@ export async function loadChatMessages(limit = 60) {
 export async function sendChatMessage(text) {
     const trimmed = text?.trim();
     if (!trimmed || trimmed.length > 500) return;
+
+    // ─── Anti-Spam Check ───
+    const now = Date.now();
+    if (now < chatTimeoutUntil) {
+        const remainingMinutes = Math.ceil((chatTimeoutUntil - now) / 60000);
+        showToast(`You are timed out for spamming. Try again in ${remainingMinutes} minute(s).`, 'error');
+        return;
+    }
+
+    if (now - lastChatTime < 2000) {
+        spamWarningCount++;
+        if (spamWarningCount >= 3) {
+            chatTimeoutUntil = now + (3 * 60 * 1000); // 3 minutes timeout
+            showToast('You have been timed out for 3 minutes due to spamming.', 'error');
+            spamWarningCount = 0;
+        } else {
+            showToast('Please wait 2 seconds between messages.', 'warning');
+        }
+        return;
+    }
+
+    // Reset warnings on successful delay
+    spamWarningCount = 0;
+    lastChatTime = now;
 
     // ─── Guests cannot send chat messages ───
     if (isGuest()) {

@@ -346,6 +346,7 @@ function getBestMove(board, color, difficulty) {
     if (difficulty === 'depth1') searchDepth = 1;
     if (difficulty === 'medium') searchDepth = 1;
     if (difficulty === 'impossible') searchDepth = 3;
+    if (difficulty === 'world_champion') searchDepth = 4; // Exclusive for 💡 button
 
     // Always Win mode: AI intentionally picks the WORST possible move for itself
     if (difficulty === 'always_win') {
@@ -446,15 +447,15 @@ export function renderChess(container, onBack, multiplayer) {
                       </div>
                       <div class="diff-card" data-diff="medium">
                         <div class="diff-card-header">Medium</div>
-                        <div class="diff-card-desc">Standard challenge with 2-move foresight.</div>
+                        <div class="diff-card-desc">Standard challenge with 1-move foresight.</div>
                       </div>
                       <div class="diff-card" data-diff="hard">
                         <div class="diff-card-header">Hard</div>
-                        <div class="diff-card-desc">Advanced challenge with 3-move foresight.</div>
+                        <div class="diff-card-desc">Advanced challenge with 2-move foresight.</div>
                       </div>
                       <div class="diff-card" data-diff="impossible" style="border-bottom: 3px solid var(--red-primary);">
                         <div class="diff-card-header">Impossible</div>
-                        <div class="diff-card-desc">Minimax depth 4. Very hard to beat.</div>
+                        <div class="diff-card-desc">Minimax depth 3. Very hard to beat.</div>
                       </div>
                     </div>
                   </div>
@@ -675,7 +676,8 @@ export function renderChess(container, onBack, multiplayer) {
         render();
 
         setTimeout(() => {
-            const m = getBestMove(board, myColor, 'impossible');
+            // Hint AI is exceptionally strong 
+            const m = getBestMove(board, myColor, 'world_champion');
             aiThinking = false;
             render();
 

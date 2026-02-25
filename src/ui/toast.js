@@ -17,10 +17,8 @@ export function showToast(message, type = 'info', duration = 3000) {
     };
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `
-    <span class="toast-icon">${icons[type] || icons.info}</span>
-    <span class="toast-text">${message}</span>
-  `;
+    toast.innerHTML = `<span class="toast-icon">${icons[type] || icons.info}</span><span class="toast-text"></span>`;
+    toast.querySelector('.toast-text').textContent = message;
     container.appendChild(toast);
 
     if (window.lucide) {

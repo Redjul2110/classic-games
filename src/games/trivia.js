@@ -3,6 +3,7 @@
 
 import { showToast } from '../ui/toast.js';
 import { getUserId, getDisplayName } from '../auth.js';
+import { escapeHtml } from '../utils.js';
 import { ogClient } from '../supabase.js';
 
 const QUESTIONS = [
@@ -198,7 +199,7 @@ export function renderTrivia(container, onBack, multiplayer) {
             ${sortedPlayers.map((id, index) => `
               <div class="score-item" style="border: ${id === myId ? '2px solid var(--primary-color)' : '1px solid var(--border-color)'}; padding:8px 16px; border-radius:12px;">
                 <div class="score-value" id="score-${id}">${scores[id]}</div>
-                <div class="score-label">${playerNames[id]} ${answers[id] ? '✅' : '⏳'}</div>
+                <div class="score-label">${escapeHtml(playerNames[id] || '')} ${answers[id] ? '✅' : '⏳'}</div>
               </div>
             `).join('')}
             <div class="score-divider" style="width:100%;text-align:center;">Question ${qIndex + 1} / 10</div>
@@ -349,12 +350,12 @@ export function renderTrivia(container, onBack, multiplayer) {
             ${isMeWinner ? '★' : '😔'}
           </div>
           <div style="font-size:2rem;font-weight:900;margin-bottom:8px;">
-            ${isMeWinner ? 'You Win!' : `${playerNames[winnerId]} Wins!`}
+            ${isMeWinner ? 'You Win!' : `${escapeHtml(playerNames[winnerId])} Wins!`}
           </div>
           <div style="color:var(--text-secondary);margin-bottom:24px;display:flex;flex-direction:column;gap:8px;">
             ${sortedIds.map((id, index) => `
                 <div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);padding:4px 0;">
-                    <span>${index + 1}. ${playerNames[id]} ${id === myId ? '(You)' : ''}</span>
+                    <span>${index + 1}. ${escapeHtml(playerNames[id])} ${id === myId ? '(You)' : ''}</span>
                     <span style="font-weight:bold;">${scores[id]} pts</span>
                 </div>
             `).join('')}

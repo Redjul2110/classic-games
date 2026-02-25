@@ -6,6 +6,7 @@ import { showToast } from '../ui/toast.js';
 import { triggerConfetti } from '../ui/animations.js';
 import { ogClient } from '../supabase.js';
 import { getUserId, getDisplayName } from '../auth.js';
+import { escapeHtml } from '../utils.js';
 
 // ─── Card definitions ───
 const COLORS = ['red', 'blue', 'green', 'yellow'];
@@ -267,7 +268,7 @@ export function renderNeonCards(container, onBack, multiplayer) {
             const h = hands[id] || [];
             const isActive = id === activeId;
             return `<div style="text-align:center;">
-                <div style="font-size:0.75rem;color:${isActive ? '#0af' : '#666'};margin-bottom:4px;">${playerNames[id] || id}${isActive ? ' 🔄' : ''}</div>
+                <div style="font-size:0.75rem;color:${isActive ? '#0af' : '#666'};margin-bottom:4px;">${escapeHtml(playerNames[id] || id)}${isActive ? ' 🔄' : ''}</div>
                 <div style="display:flex;gap:2px;justify-content:center;">
                   ${h.map(() => `<div style="width:24px;height:36px;border-radius:4px;background:linear-gradient(135deg,#222,#1a0a2e);border:1px solid rgba(255,255,255,0.1);"></div>`).join('')}
                 </div>
@@ -278,7 +279,7 @@ export function renderNeonCards(container, onBack, multiplayer) {
 
           <!-- Turn status -->
           <div style="font-size:0.88rem;font-weight:700;color:${isMyTurn ? '#0af' : '#ff2d55'};">
-            ${gameOver ? 'Game Over' : isMyTurn ? '▶ Your turn' : (isMp ? `⏳ ${playerNames[activeId]}'s turn…` : '⚡ AI thinking…')}
+            ${gameOver ? 'Game Over' : isMyTurn ? '▶ Your turn' : (isMp ? `⏳ ${escapeHtml(playerNames[activeId] || '')}'s turn…` : '⚡ AI thinking…')}
             ${drawPending > 0 ? ` — Draw ${drawPending} cards first!` : ''}
           </div>
 
@@ -494,7 +495,7 @@ export function renderNeonCards(container, onBack, multiplayer) {
         gameOver = true;
         const isMe = winnerId === (isMp ? myId : 'player') || winnerId === 'player';
         if (isMe) { scores.player++; triggerConfetti(); showToast('🎉 You win!', 'success'); }
-        else { scores.ai++; showToast(`${isMp ? (playerNames[winnerId] || 'Opponent') : '🤖 AI'} wins!`, 'error'); }
+        else { scores.ai++; showToast(`${isMp ? (escapeHtml(playerNames[winnerId] || '')) || 'Opponent' : '🤖 AI'} wins!`, 'error'); }
         if (isMp && isHost) pushStateToAll();
         render();
 
@@ -503,7 +504,7 @@ export function renderNeonCards(container, onBack, multiplayer) {
             div.innerHTML = `<div style="position:fixed;inset:0;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:100;">
             <div style="text-align:center;padding:40px;">
               <div style="font-size:3rem;margin-bottom:12px;">${isMe ? '🎉' : '💀'}</div>
-              <div style="font-size:2rem;font-weight:900;margin-bottom:16px;">${isMe ? 'You Win!' : `${isMp ? (playerNames[winnerId] || 'Opponent') : '🤖 AI'} Wins!`}</div>
+              <div style="font-size:2rem;font-weight:900;margin-bottom:16px;">${isMe ? 'You Win!' : `${isMp ? (escapeHtml(playerNames[winnerId] || '')) || 'Opponent' : '🤖 AI'} Wins!`}</div>
               <div style="display:flex;gap:12px;justify-content:center;">
                 ${(!isMp || isHost) ? `<button class="btn btn-primary" id="nc-rematch">Play Again</button>` : `<div style="color:var(--text-muted)">Waiting for host...</div>`}
                 <button class="btn btn-ghost" id="nc-exit">Exit</button>
