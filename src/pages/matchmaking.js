@@ -3,19 +3,19 @@
 
 import { GAMES, APP_CONFIG } from '../config.js';
 import {
-    createLobby, joinPublicLobby, joinPrivateLobby, leaveLobby
+  createLobby, joinPublicLobby, joinPrivateLobby, leaveLobby
 } from '../lobby.js';
 import { renderNavbar } from '../ui/navbar.js';
 import { showToast } from '../ui/toast.js';
 
 export function renderMatchmakingPage(container, game, {
-    onBack, onLobbyJoined, onProfileClick, onChatClick, onSignOut
+  onBack, onLobbyJoined, onProfileClick, onChatClick, onSignOut
 }) {
-    const maxPlayers = game.maxPlayers;
-    let selectedCount = Math.min(2, maxPlayers);
+  const maxPlayers = game.maxPlayers;
+  let selectedCount = Math.min(2, maxPlayers);
 
-    function render() {
-        container.innerHTML = `
+  function render() {
+    container.innerHTML = `
       <div class="matchmaking-page">
         <div id="mm-navbar"></div>
         <div class="matchmaking-content">
@@ -24,16 +24,6 @@ export function renderMatchmakingPage(container, game, {
           <div class="matchmaking-game-badge">
             <span>${game.icon}</span> ${game.name}
           </div>
-
-          ${maxPlayers > 2 ? `
-          <div class="player-count-selector">
-            <div class="player-count-label">Max Players in Lobby</div>
-            <div class="player-count-btns">
-              ${Array.from({ length: maxPlayers - 1 }, (_, i) => i + 2).map(n => `
-                <button class="count-btn ${n === selectedCount ? 'active' : ''}" data-count="${n}">${n}</button>
-              `).join('')}
-            </div>
-          </div>` : ''}
 
           <div id="mm-status-banner" class="hidden"></div>
 
@@ -72,112 +62,103 @@ export function renderMatchmakingPage(container, game, {
       </div>
     `;
 
-        renderNavbar(container.querySelector('#mm-navbar'), { onProfileClick, onChatClick, onSignOut });
+    renderNavbar(container.querySelector('#mm-navbar'), { onProfileClick, onChatClick, onSignOut });
 
-        // Back button
-        container.querySelector('#back-btn').addEventListener('click', onBack);
+    // Back button
+    container.querySelector('#back-btn').addEventListener('click', onBack);
 
-        // Player count selector
-        container.querySelectorAll('.count-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                container.querySelectorAll('.count-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                selectedCount = parseInt(btn.dataset.count);
-            });
-        });
+    // Host Public
+    container.querySelector('#host-public-btn').addEventListener('click', async () => {
+      setLoading(true, '🌐 Creating public lobby…');
+      try {
+        const lobby = await createLobby(game.id, selectedCount, true);
+        showToast('Public lobby created!', 'success');
+        onLobbyJoined(lobby, game, true);
+      } catch (err) {
+        showToast('Failed to create lobby: ' + err.message, 'error');
+      } finally { setLoading(false); }
+    });
 
-        // Host Public
-        container.querySelector('#host-public-btn').addEventListener('click', async () => {
-            setLoading(true, '🌐 Creating public lobby…');
-            try {
-                const lobby = await createLobby(game.id, selectedCount, true);
-                showToast('Public lobby created!', 'success');
-                onLobbyJoined(lobby, game, true);
-            } catch (err) {
-                showToast('Failed to create lobby: ' + err.message, 'error');
-            } finally { setLoading(false); }
-        });
+    // Host Private
+    container.querySelector('#host-private-btn').addEventListener('click', async () => {
+      setLoading(true, '🔒 Creating private lobby…');
+      try {
+        const lobby = await createLobby(game.id, selectedCount, false);
+        showToast(`Private lobby created! Code: ${lobby.lobby_code}`, 'success');
+        onLobbyJoined(lobby, game, true);
+      } catch (err) {
+        showToast('Failed to create lobby: ' + err.message, 'error');
+      } finally { setLoading(false); }
+    });
 
-        // Host Private
-        container.querySelector('#host-private-btn').addEventListener('click', async () => {
-            setLoading(true, '🔒 Creating private lobby…');
-            try {
-                const lobby = await createLobby(game.id, selectedCount, false);
-                showToast(`Private lobby created! Code: ${lobby.lobby_code}`, 'success');
-                onLobbyJoined(lobby, game, true);
-            } catch (err) {
-                showToast('Failed to create lobby: ' + err.message, 'error');
-            } finally { setLoading(false); }
-        });
+    // Join Random
+    container.querySelector('#join-random-btn').addEventListener('click', async () => {
+      setLoading(true, '🎲 Searching for a public lobby…');
+      try {
+        const lobby = await joinPublicLobby(game.id);
+        if (lobby) {
+          showToast('Found a lobby!', 'success');
+          onLobbyJoined(lobby, game, false);
+        } else {
+          showToast('No public lobbies found. Host one!', 'info');
+        }
+      } catch (err) {
+        showToast('Search failed: ' + err.message, 'error');
+      } finally { setLoading(false); }
+    });
 
-        // Join Random
-        container.querySelector('#join-random-btn').addEventListener('click', async () => {
-            setLoading(true, '🎲 Searching for a public lobby…');
-            try {
-                const lobby = await joinPublicLobby(game.id);
-                if (lobby) {
-                    showToast('Found a lobby!', 'success');
-                    onLobbyJoined(lobby, game, false);
-                } else {
-                    showToast('No public lobbies found. Host one!', 'info');
-                }
-            } catch (err) {
-                showToast('Search failed: ' + err.message, 'error');
-            } finally { setLoading(false); }
-        });
+    // Join Private - show code input
+    container.querySelector('#join-private-btn').addEventListener('click', () => {
+      const section = container.querySelector('#join-code-section');
+      section.classList.toggle('hidden');
+      if (!section.classList.contains('hidden')) {
+        section.querySelector('#lobby-code-input').focus();
+      }
+    });
 
-        // Join Private - show code input
-        container.querySelector('#join-private-btn').addEventListener('click', () => {
-            const section = container.querySelector('#join-code-section');
-            section.classList.toggle('hidden');
-            if (!section.classList.contains('hidden')) {
-                section.querySelector('#lobby-code-input').focus();
-            }
-        });
+    // Submit private code
+    container.querySelector('#submit-code-btn').addEventListener('click', async () => {
+      const code = container.querySelector('#lobby-code-input').value.trim().toUpperCase();
+      if (code.length !== 5) {
+        showToast('Lobby code must be 5 characters.', 'error');
+        return;
+      }
+      setLoading(true, `🔑 Joining lobby ${code}…`);
+      try {
+        const lobby = await joinPrivateLobby(code);
+        showToast('Joined private lobby!', 'success');
+        onLobbyJoined(lobby, game, false);
+      } catch (err) {
+        showToast('Could not join: ' + err.message, 'error');
+      } finally { setLoading(false); }
+    });
 
-        // Submit private code
-        container.querySelector('#submit-code-btn').addEventListener('click', async () => {
-            const code = container.querySelector('#lobby-code-input').value.trim().toUpperCase();
-            if (code.length !== 5) {
-                showToast('Lobby code must be 5 characters.', 'error');
-                return;
-            }
-            setLoading(true, `🔑 Joining lobby ${code}…`);
-            try {
-                const lobby = await joinPrivateLobby(code);
-                showToast('Joined private lobby!', 'success');
-                onLobbyJoined(lobby, game, false);
-            } catch (err) {
-                showToast('Could not join: ' + err.message, 'error');
-            } finally { setLoading(false); }
-        });
+    // Enter key for code input
+    container.querySelector('#lobby-code-input')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') container.querySelector('#submit-code-btn').click();
+    });
+  }
 
-        // Enter key for code input
-        container.querySelector('#lobby-code-input')?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') container.querySelector('#submit-code-btn').click();
-        });
-    }
-
-    function setLoading(loading, message = '') {
-        const banner = container.querySelector('#mm-status-banner');
-        if (loading) {
-            banner.innerHTML = `
+  function setLoading(loading, message = '') {
+    const banner = container.querySelector('#mm-status-banner');
+    if (loading) {
+      banner.innerHTML = `
         <div class="status-banner searching">
           <span class="status-icon">⏳</span>
           <span class="status-text"><strong>${message}</strong></span>
         </div>`;
-            banner.classList.remove('hidden');
-            container.querySelectorAll('.mm-option-card').forEach(c => {
-                c.style.opacity = '0.5'; c.style.pointerEvents = 'none';
-            });
-        } else {
-            banner.classList.add('hidden');
-            banner.innerHTML = '';
-            container.querySelectorAll('.mm-option-card').forEach(c => {
-                c.style.opacity = ''; c.style.pointerEvents = '';
-            });
-        }
+      banner.classList.remove('hidden');
+      container.querySelectorAll('.mm-option-card').forEach(c => {
+        c.style.opacity = '0.5'; c.style.pointerEvents = 'none';
+      });
+    } else {
+      banner.classList.add('hidden');
+      banner.innerHTML = '';
+      container.querySelectorAll('.mm-option-card').forEach(c => {
+        c.style.opacity = ''; c.style.pointerEvents = '';
+      });
     }
+  }
 
-    render();
+  render();
 }

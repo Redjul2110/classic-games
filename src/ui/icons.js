@@ -42,6 +42,7 @@ export const UI_ICONS = {
   games: '<i data-lucide="gamepad-2"></i>',
   chat: '<i data-lucide="message-square"></i>',
   profile: '<i data-lucide="user"></i>',
+  settings: '<i data-lucide="settings"></i>',
   signout: '<i data-lucide="log-out"></i>',
   robot: '<i data-lucide="bot"></i>',    // used for VS AI buttons
   question: '<i data-lucide="help-circle"></i>',

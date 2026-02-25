@@ -1,16 +1,51 @@
 // src/games/checkers.js
 // Checkers / Draughts with Minimax AI (depth 5) and forced captures
 
+import { ogClient } from '../supabase.js';
+import { showToast } from '../ui/toast.js';
+
 const EMPTY = 0, RED = 1, BLACK = -1, RED_KING = 2, BLACK_KING = -2;
 
-export function renderCheckers(container, onBack) {
+export function renderCheckers(container, onBack, multiplayer) {
     let board = initBoard();
     let selected = null;
     let validMoves = [];
-    let turn = RED; // human = RED (plays from bottom)
+    let turn = RED; // human/host = RED (plays from bottom)
     let gameOver = false;
     let aiThinking = false;
     let scores = { player: 0, ai: 0 };
+
+    const isMp = !!multiplayer;
+    const isHost = isMp ? multiplayer.isHost : true;
+    const myColor = isMp ? (isHost ? RED : BLACK) : RED;
+    let channel = null;
+
+    if (isMp) {
+        channel = ogClient.channel('game-' + multiplayer.lobby.id);
+        channel.on('broadcast', { event: 'move' }, (payload) => {
+            const { move, nextTurn } = payload.payload;
+            applyMove(board, move);
+            turn = nextTurn;
+            checkGameOver();
+            render();
+        }).on('broadcast', { event: 'new_game' }, () => {
+            if (!isHost) {
+                board = initBoard(); selected = null; validMoves = []; turn = RED; gameOver = false; render();
+            }
+        }).subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                showToast('Connected to opponent! 🔴⚫', 'success');
+            }
+        });
+    }
+
+    function checkGameOver() {
+        if (isGameOver(board, turn)) {
+            gameOver = true;
+            if (turn === BLACK) { scores.player++; showEnd(isMp ? (myColor === RED ? 'You win! ★' : 'Red wins!') : 'You win! ★'); }
+            else { scores.ai++; showEnd(isMp ? (myColor === BLACK ? 'You win! ★' : 'Black wins!') : 'AI wins! [AI]'); }
+        }
+    }
 
     function initBoard() {
         const b = Array.from({ length: 8 }, () => Array(8).fill(EMPTY));
@@ -24,29 +59,35 @@ export function renderCheckers(container, onBack) {
       <div class="game-screen">
         <div class="game-screen-header">
           <button class="btn btn-ghost btn-sm" id="back-btn">← Back</button>
-          <div class="game-screen-title">Checkers <span class="game-screen-badge vs-ai">VS AI</span></div>
+          <div class="game-screen-title">Checkers <span class="game-screen-badge ${isMp ? 'vs-player' : 'vs-ai'}">${isMp ? 'VS Player' : 'VS AI'}</span></div>
         </div>
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:16px;gap:12px;">
           <div class="score-board">
-            <div class="score-item"><div class="score-value player-score">${scores.player}</div><div class="score-label">You (Red)</div></div>
-            <div class="score-divider">${gameOver ? 'Game Over' : turn === RED ? 'Your Turn' : '[AI] Thinking…'}</div>
-            <div class="score-item"><div class="score-value ai-score">${scores.ai}</div><div class="score-label">AI (Black)</div></div>
+            <div class="score-item"><div class="score-value player-score">${scores.player}</div><div class="score-label">${isMp ? 'Red (Host)' : 'You (Red)'}</div></div>
+            <div class="score-divider">${gameOver ? 'Game Over' : turn === RED ? "Red's Turn" : "Black's Turn"}</div>
+            <div class="score-item"><div class="score-value ai-score">${scores.ai}</div><div class="score-label">${isMp ? 'Black (Guest)' : 'AI (Black)'}</div></div>
           </div>
           <div class="checkers-board" id="checkers-board">${renderBoard()}</div>
-          <button class="btn btn-ghost btn-sm" id="new-game-btn">New Game</button>
+          <button class="btn btn-ghost btn-sm" id="new-game-btn" ${isMp && !isHost ? 'style="display:none;"' : ''}>New Game</button>
         </div>
       </div>
     `;
-        container.querySelector('#back-btn').addEventListener('click', onBack);
-        container.querySelector('#new-game-btn').addEventListener('click', () => {
-            board = initBoard(); selected = null; validMoves = []; turn = RED; gameOver = false; aiThinking = false; render();
+        container.querySelector('#back-btn').addEventListener('click', () => {
+            if (channel) { channel.unsubscribe(); ogClient.removeChannel(channel); }
+            onBack();
+        });
+        container.querySelector('#new-game-btn')?.addEventListener('click', () => {
+            if (isMp && !isHost) return;
+            board = initBoard(); selected = null; validMoves = []; turn = RED; gameOver = false; aiThinking = false;
+            if (isMp && channel) channel.send({ type: 'broadcast', event: 'new_game' });
+            render();
         });
 
         if (!aiThinking && !gameOver) {
             container.querySelectorAll('.checkers-cell').forEach(cell => {
                 cell.addEventListener('click', () => handleClick(parseInt(cell.dataset.r), parseInt(cell.dataset.c)));
             });
-            if (turn === BLACK && !aiThinking) {
+            if (!isMp && turn === BLACK && !aiThinking) {
                 aiThinking = true;
                 setTimeout(() => { makeAIMove(); aiThinking = false; render(); }, 600);
             }
@@ -75,7 +116,7 @@ export function renderCheckers(container, onBack) {
     }
 
     function handleClick(r, c) {
-        if (aiThinking || gameOver || turn !== RED) return;
+        if (aiThinking || gameOver || turn !== myColor) return;
         const piece = board[r][c];
 
         if (selected) {
@@ -83,36 +124,37 @@ export function renderCheckers(container, onBack) {
             if (target) {
                 applyMove(board, target);
                 selected = null; validMoves = [];
-                if (isGameOver(board, BLACK)) { scores.player++; gameOver = true; render(); return showEnd('You win! ★'); }
-                turn = BLACK;
-                // render() alone will safely trigger the AI move
+                turn = myColor === RED ? BLACK : RED;
+
+                checkGameOver();
+
+                if (isMp && channel) {
+                    channel.send({ type: 'broadcast', event: 'move', payload: { move: target, nextTurn: turn } });
+                }
+
                 render();
                 return;
             }
             selected = null; validMoves = [];
         }
 
-        if (piece > 0) { // RED piece
+        if ((myColor === RED && piece > 0) || (myColor === BLACK && piece < 0)) {
             selected = [r, c];
-            validMoves = getPieceMoves(board, r, c, RED);
+            validMoves = getPieceMoves(board, r, c, myColor);
             // Forced capture
-            const allCaptures = getAllMoves(board, RED).filter(m => m[4]);
+            const allCaptures = getAllMoves(board, myColor).filter(m => m[4]);
             if (allCaptures.length > 0) validMoves = validMoves.filter(m => m[4]);
         }
         render();
     }
 
     function makeAIMove() {
+        if (gameOver) return;
         const move = checkersMinimaxRoot(board, 5);
         if (move) {
             applyMove(board, move);
-            if (isGameOver(board, RED)) {
-                scores.ai++;
-                gameOver = true;
-                setTimeout(() => showEnd('AI wins! [AI]'), 300);
-            } else {
-                turn = RED;
-            }
+            turn = RED;
+            checkGameOver();
         } else {
             // No moves = player wins
             scores.player++;
@@ -123,11 +165,9 @@ export function renderCheckers(container, onBack) {
 
     function showEnd(msg) {
         import('../ui/animations.js').then(({ triggerConfetti }) => {
-            if (msg.includes('You win')) triggerConfetti();
+            if (msg.includes('You win') || msg.includes('Red wins') || msg.includes('Black wins')) triggerConfetti();
         });
-        import('../ui/toast.js').then(({ showToast }) => {
-            showToast(msg, msg.includes('You') ? 'success' : 'error');
-        });
+        showToast(msg, msg.includes('win') ? 'success' : 'error');
     }
 
     render();

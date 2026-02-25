@@ -4,6 +4,7 @@
 
 import { showToast } from '../ui/toast.js';
 import { showResultCard } from './tictactoe.js';
+import { getDisplayName, getUserId, hasAiAccess } from '../auth.js';
 import { triggerConfetti } from '../ui/animations.js';
 import { ogClient } from '../supabase.js';
 
@@ -341,10 +342,10 @@ function getBestMove(board, color, difficulty) {
         difficulty = 'depth1';
     }
 
-    let searchDepth = 3; // hard
+    let searchDepth = 2; // hard
     if (difficulty === 'depth1') searchDepth = 1;
-    if (difficulty === 'medium') searchDepth = 2;
-    if (difficulty === 'impossible') searchDepth = 4;
+    if (difficulty === 'medium') searchDepth = 1;
+    if (difficulty === 'impossible') searchDepth = 3;
 
     // Always Win mode: AI intentionally picks the WORST possible move for itself
     if (difficulty === 'always_win') {
@@ -396,6 +397,7 @@ export function renderChess(container, onBack, multiplayer) {
     let lastMove = null;
     let scores = { player: 0, ai: 0 };
     let checkMsg = '';
+    let autoHelp = false;
     let channel = null;
 
     if (isMp) {
@@ -507,12 +509,16 @@ export function renderChess(container, onBack, multiplayer) {
                       ${aiThinking ? '[AI] AI is thinking…' : gameOver ? '♟️ Game Over' : checkMsg || (turn === myColor ? (myColor === 'white' ? '♔' : '♚') + ' Your turn' : (isMp ? 'Opponent is thinking...' : '♚ AI is playing...'))}
                     </div>
                     <div class="chess-board" id="chess-board">${renderBoard()}</div>
-                    ${(!isMp || isHost) ? '<button class="btn btn-ghost btn-sm" id="new-game-btn">New Game</button>' : ''}
+                    <div style="display:flex;gap:8px;margin-top:4px;">
+                      ${(!isMp || isHost) ? '<button class="btn btn-ghost btn-sm" id="new-game-btn">New Game</button>' : ''}
+                      ${hasAiAccess ? `<button class="btn btn-ghost btn-sm" id="help-btn" title="Toggle Auto-AI Hints" style="font-size:1.2rem;padding:4px 8px; ${autoHelp ? 'background:rgba(241, 196, 15, 0.2); border: 1px solid #f1c40f;' : ''}">💡</button>` : ''}
+                    </div>
                   </div>
                 </div>
             `;
             container.querySelector('#back-btn').addEventListener('click', handleExit);
             container.querySelector('#new-game-btn')?.addEventListener('click', () => resetGame(true));
+            container.querySelector('#help-btn')?.addEventListener('click', () => handleHelp(false));
         }
 
         container.querySelectorAll('.chess-cell').forEach(cell => {
@@ -619,6 +625,10 @@ export function renderChess(container, onBack, multiplayer) {
         turn = opp;
         render();
 
+        if (turn === myColor && autoHelp && !aiThinking && !gameOver) {
+            handleHelp(true);
+        }
+
         if (!isMp && turn === 'black' && !aiThinking) {
             aiThinking = true;
             render();
@@ -639,11 +649,47 @@ export function renderChess(container, onBack, multiplayer) {
         board = INIT_BOARD();
         selected = null; validMoves = [];
         turn = 'white'; gameOver = false; aiThinking = false;
-        lastMove = null; checkMsg = '';
+        lastMove = null; checkMsg = ''; autoHelp = false;
         if (isMp && broadcast && channel) {
             channel.send({ type: 'broadcast', event: 'new_game' });
         }
         render();
+    }
+
+    function handleHelp(autoTrigger = false) {
+        if (gameOver || aiThinking || turn !== myColor) return;
+
+        if (!autoTrigger) {
+            autoHelp = !autoHelp;
+            if (!autoHelp) {
+                container.querySelectorAll('.chess-cell').forEach(c => c.classList.remove('help-blink'));
+                render();
+                showToast('Auto-Hints Disabled.', 'info');
+                return;
+            } else {
+                showToast('Auto-Hints Enabled!', 'success');
+            }
+        }
+
+        aiThinking = true;
+        render();
+
+        setTimeout(() => {
+            const m = getBestMove(board, myColor, 'impossible');
+            aiThinking = false;
+            render();
+
+            if (m) {
+                container.querySelectorAll('.chess-cell').forEach(c => c.classList.remove('help-blink'));
+                const cellFrom = container.querySelector(`.chess-cell[data-r="${m[0]}"][data-c="${m[1]}"]`);
+                const cellTo = container.querySelector(`.chess-cell[data-r="${m[2]}"][data-c="${m[3]}"]`);
+                if (cellFrom) cellFrom.classList.add('help-blink');
+                if (cellTo) cellTo.classList.add('help-blink');
+            } else {
+                if (!autoTrigger) showToast('No safe moves available.', 'error');
+                autoHelp = false;
+            }
+        }, 50);
     }
 
     render();

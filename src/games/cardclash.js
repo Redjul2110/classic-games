@@ -139,6 +139,7 @@ export function renderCardClash(container, onBack, multiplayer) {
       }
     }).on('broadcast', { event: 'move' }, (payload) => {
       const { action, cardIdx, colorChosen, whoId } = payload.payload;
+      if (whoId === myId) return; // Prevent double execution of perfectly synced local moves
       if (action === 'draw') {
         executeDraw(whoId);
       } else if (action === 'play') {

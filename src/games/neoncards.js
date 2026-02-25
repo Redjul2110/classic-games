@@ -105,8 +105,8 @@ export function renderNeonCards(container, onBack, multiplayer) {
     if (isMp) {
         channel = ogClient.channel('game-' + multiplayer.lobby.id);
         channel.on('broadcast', { event: 'init_state' }, (payload) => {
+            const p = payload.payload;
             if (!isHost) {
-                const p = payload.payload;
                 deck = p.deck; hands = p.hands; playerIds = p.playerIds;
                 playerNames = p.playerNames; discard = p.discard;
                 chosenColor = p.chosenColor; currentTurnIdx = p.currentTurnIdx;
@@ -118,7 +118,8 @@ export function renderNeonCards(container, onBack, multiplayer) {
         }).on('broadcast', { event: 'request_state' }, () => {
             if (isHost && hands && Object.keys(hands).length > 0) syncHostState();
         }).on('broadcast', { event: 'move' }, (payload) => {
-            applyMove(payload.payload);
+            const p = payload.payload;
+            applyMove(p);
         }).on('broadcast', { event: 'new_game' }, () => {
             if (isHost) { init(true); }
         }).subscribe((status) => {
@@ -127,20 +128,33 @@ export function renderNeonCards(container, onBack, multiplayer) {
                 if (isHost) {
                     setTimeout(() => syncHostState(), 400);
                 } else {
-                    setTimeout(() => channel.send({ type: 'broadcast', event: 'request_state' }), 600);
+                    const reqInt = setInterval(() => {
+                        if (!deck) channel.send({ type: 'broadcast', event: 'request_state' });
+                        else clearInterval(reqInt);
+                    }, 1000);
                 }
             }
         });
     }
 
     function applyMove(move) {
-        // Reconstruct full state from host after every move in MP
-        if (move.type === 'sync_state') {
+        if (isHost && move.type === 'action') {
+            // Host executes guest's action
+            if (move.action === 'play') {
+                handlePlayCard(move.idx, true); // true = force execute as host
+            } else if (move.action === 'drawPile') {
+                handleDrawPile(true);
+            } else if (move.action === 'color') {
+                handleColorPick(move.color, true);
+            }
+        } else if (!isHost && move.type === 'sync_state') {
+            // Guest blind-copies host state
             deck = move.deck; hands = move.hands; discard = move.discard;
             chosenColor = move.chosenColor; currentTurnIdx = move.currentTurnIdx;
             direction = move.direction; reversed = move.reversed;
             skipNext = move.skipNext; drawPending = move.drawPending;
             gameOver = move.gameOver || false;
+            choosingColor = move.choosingColor || false;
             render();
         }
     }
@@ -152,7 +166,7 @@ export function renderNeonCards(container, onBack, multiplayer) {
                 payload: {
                     type: 'sync_state',
                     deck, hands, discard, chosenColor, currentTurnIdx,
-                    direction, reversed, skipNext, drawPending, gameOver
+                    direction, reversed, skipNext, drawPending, gameOver, choosingColor
                 }
             });
         }
@@ -337,68 +351,94 @@ export function renderNeonCards(container, onBack, multiplayer) {
         }
     }
 
-    function handlePlayCard(idx) {
+    function handlePlayCard(idx, isHostExec = false) {
         const activeId = playerIds[currentTurnIdx];
         const isMyTurn = !isMp ? activeId === 'player' : activeId === myId;
-        if (!isMyTurn || gameOver || choosingColor) return;
-        const myHand = hands[isMp ? myId : 'player'];
-        const card = myHand[idx];
+
+        // If it's not our turn and this isn't the host blindly executing a guest command, abort
+        if ((!isMyTurn && !isHostExec) || gameOver || choosingColor) return;
+
+        // If we are a guest, just send the action to the host
+        if (isMp && !isHost && !isHostExec) {
+            channel.send({ type: 'broadcast', event: 'move', payload: { type: 'action', action: 'play', idx } });
+            return;
+        }
+
+        const handToModify = hands[activeId]; // apply to active player's hand
+        const card = handToModify[idx];
         const top = getTop();
         const tc = chosenColor || top.color;
         if (!canPlay(card, top, tc)) return;
 
-        myHand.splice(idx, 1);
+        handToModify.splice(idx, 1);
         discard.push(card);
         chosenColor = null;
 
         if (card.color === 'wild') {
             choosingColor = true;
-            if (isMp) pushStateToAll();
+            if (isMp && isHost) pushStateToAll();
             render();
             return;
         }
 
         applyEffect(card);
-        if (!myHand.length) return endGame(isMp ? myId : 'player');
+        if (!handToModify.length) return endGame(activeId);
 
         advanceTurn();
-        if (isMp) pushStateToAll();
+        if (isMp && isHost) pushStateToAll();
         render();
     }
 
-    function handleColorPick(color) {
-        const myHand = hands[isMp ? myId : 'player'];
-        chosenColor = color;
-        choosingColor = false;
-        if (!myHand.length) return endGame(isMp ? myId : 'player');
-        advanceTurn();
-        if (isMp) pushStateToAll();
-        render();
-    }
-
-    function handleDrawPile() {
+    function handleColorPick(color, isHostExec = false) {
         const activeId = playerIds[currentTurnIdx];
         const isMyTurn = !isMp ? activeId === 'player' : activeId === myId;
-        if (!isMyTurn || gameOver) return;
-        const myHand = hands[isMp ? myId : 'player'];
+
+        if ((!isMyTurn && !isHostExec) || gameOver) return;
+
+        if (isMp && !isHost && !isHostExec) {
+            channel.send({ type: 'broadcast', event: 'move', payload: { type: 'action', action: 'color', color } });
+            return;
+        }
+
+        const handToModify = hands[activeId];
+        chosenColor = color;
+        choosingColor = false;
+        if (!handToModify.length) return endGame(activeId);
+        advanceTurn();
+        if (isMp && isHost) pushStateToAll();
+        render();
+    }
+
+    function handleDrawPile(isHostExec = false) {
+        const activeId = playerIds[currentTurnIdx];
+        const isMyTurn = !isMp ? activeId === 'player' : activeId === myId;
+
+        if ((!isMyTurn && !isHostExec) || gameOver || choosingColor) return;
+
+        if (isMp && !isHost && !isHostExec) {
+            channel.send({ type: 'broadcast', event: 'move', payload: { type: 'action', action: 'drawPile' } });
+            return;
+        }
+
+        const handToModify = hands[activeId];
 
         if (drawPending > 0) {
-            for (let i = 0; i < drawPending; i++) myHand.push(drawCard());
+            for (let i = 0; i < drawPending; i++) handToModify.push(drawCard());
             drawPending = 0;
             advanceTurn();
-            if (isMp) pushStateToAll();
+            if (isMp && isHost) pushStateToAll();
             render();
             return;
         }
 
         const drawn = drawCard();
-        myHand.push(drawn);
-        showToast('Drew a card', 'info');
+        handToModify.push(drawn);
+        if (!isHostExec || isMyTurn) showToast('Drew a card', 'info'); // Don't show host toast for guest
         const top = getTop();
         const tc = chosenColor || top.color;
-        const valid = myHand.filter(c => canPlay(c, top, tc));
+        const valid = handToModify.filter(c => canPlay(c, top, tc));
         if (!valid.length) { advanceTurn(); }
-        if (isMp) pushStateToAll();
+        if (isMp && isHost) pushStateToAll();
         render();
     }
 

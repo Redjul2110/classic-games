@@ -1,7 +1,7 @@
 // src/games/tictactoe.js
 // Tic-Tac-Toe with perfect Minimax AI (fixed: proper variable scoping, no cheats)
 
-import { getDisplayName, getUserId } from '../auth.js';
+import { getDisplayName, getUserId, hasAiAccess } from '../auth.js';
 import { UI_ICONS } from '../ui/icons.js';
 import { showToast } from '../ui/toast.js';
 import { triggerConfetti } from '../ui/animations.js';
@@ -23,6 +23,7 @@ export function renderTicTacToe(container, onBack, multiplayer) {
   let aiDifficulty = 'hard'; // default for tic-tac-toe
   let diffSelected = isMp; // In MP, bypass difficulty select
   let scores = { player: 0, opponent: 0, draws: 0 };
+  let autoHelp = false;
   let channel = null;
 
   if (isMp) {
@@ -173,7 +174,10 @@ export function renderTicTacToe(container, onBack, multiplayer) {
                 <span class="turn-dot ${!isPlayerTurn ? 'ai' : ''}"></span>
                 ${isPlayerTurn ? 'Your turn' : (isMp ? 'Opponent thinking…' : '[AI] AI thinking…')}
               </div>
-              ${isMp && !isHost ? '' : '<button class="btn btn-ghost btn-sm" id="new-game-btn">New Game</button>'}
+              <div style="display:flex;gap:8px;">
+                ${isMp && !isHost ? '' : '<button class="btn btn-ghost btn-sm" id="new-game-btn">New Game</button>'}
+                ${hasAiAccess ? `<button class="btn btn-ghost btn-sm" id="help-btn" title="Toggle Auto-AI Hints" style="font-size:1.2rem;padding:4px 8px; ${autoHelp ? 'background:rgba(241, 196, 15, 0.2); border: 1px solid #f1c40f;' : ''}">💡</button>` : ''}
+              </div>
             </div>
 
             <div class="ttt-board" id="ttt-board">
@@ -191,6 +195,7 @@ export function renderTicTacToe(container, onBack, multiplayer) {
       if (isMp ? isHost : true) {
         container.querySelector('#new-game-btn')?.addEventListener('click', newGame);
       }
+      container.querySelector('#help-btn')?.addEventListener('click', () => handleHelp(false));
     }
 
     if (isPlayerTurn) {
@@ -215,6 +220,10 @@ export function renderTicTacToe(container, onBack, multiplayer) {
 
     if (checkEnd()) return;
     render();
+
+    if (autoHelp && currentTurnSymbol === playerSymbol && !gameOver) {
+      handleHelp(true);
+    }
   }
 
   function aiMove() {
@@ -245,11 +254,16 @@ export function renderTicTacToe(container, onBack, multiplayer) {
     currentTurnSymbol = playerSymbol;
     if (checkEnd()) return;
     render();
+
+    if (autoHelp && currentTurnSymbol === playerSymbol && !gameOver) {
+      handleHelp(true);
+    }
   }
 
   function resetBoard(broadcast = false) {
     board = Array(9).fill(null);
     gameOver = false;
+    autoHelp = false;
     // alternate first move
     if (!isMp) {
       [playerSymbol, opponentSymbol] = [opponentSymbol, playerSymbol];
@@ -271,6 +285,32 @@ export function renderTicTacToe(container, onBack, multiplayer) {
 
   function newGame() {
     resetBoard(true);
+  }
+
+  function handleHelp(autoTrigger = false) {
+    if (gameOver || aiMovePending || currentTurnSymbol !== playerSymbol) return;
+
+    if (!autoTrigger) {
+      autoHelp = !autoHelp;
+      if (!autoHelp) {
+        container.querySelectorAll('.ttt-cell').forEach(c => c.classList.remove('help-blink'));
+        render();
+        showToast('Auto-Hints Disabled.', 'info');
+        return;
+      } else {
+        showToast('Auto-Hints Enabled!', 'success');
+      }
+    }
+
+    render(); // Update UI button state
+
+    const bestMove = minimaxBestMove([...board], playerSymbol, opponentSymbol);
+    if (bestMove !== -1) {
+      container.querySelectorAll('.ttt-cell').forEach(c => c.classList.remove('help-blink'));
+      const cell = container.querySelector(`.ttt-cell[data-idx="${bestMove}"]`);
+      if (cell) cell.classList.add('help-blink');
+      if (!autoTrigger) showToast('The AI suggests this move.', 'info');
+    }
   }
 
   render();

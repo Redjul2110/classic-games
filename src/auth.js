@@ -11,6 +11,7 @@ import { showToast } from './ui/toast.js';
 export let currentUser = null;   // Supabase auth user or null
 export let currentProfile = null; // profiles table row
 export let guestSession = null;  // { id, username, is_guest: true }
+export let hasAiAccess = false;  // UI toggle for 💡 button
 
 // Listeners that get called when auth state changes
 const authListeners = [];
@@ -57,9 +58,11 @@ export async function initAuth() {
         if (session) {
             currentUser = session.user;
             await loadProfile(currentUser.id);
+            await checkAiAccess();
         } else {
             currentUser = null;
             currentProfile = null;
+            hasAiAccess = false;
         }
         notifyAuth();
     });
@@ -98,6 +101,7 @@ export async function signUp(email, password, username) {
     if (data.user) {
         currentUser = data.user;
         await loadProfile(currentUser.id);
+        await checkAiAccess();
         notifyAuth();
     }
     return data;
@@ -112,6 +116,7 @@ export async function signIn(email, password) {
 
     currentUser = data.user;
     await loadProfile(currentUser.id);
+    await checkAiAccess();
     notifyAuth();
     return data;
 }
@@ -124,6 +129,7 @@ export async function signOut() {
     currentUser = null;
     currentProfile = null;
     guestSession = null;
+    hasAiAccess = false;
     localStorage.removeItem('rjg_guest');
     notifyAuth();
 }
@@ -141,6 +147,7 @@ export function createGuestSession() {
         created_at: new Date().toISOString(),
     };
     localStorage.setItem('rjg_guest', JSON.stringify(guestSession));
+    hasAiAccess = false; // Guests never have AI access
     notifyAuth();
     return guestSession;
 }
@@ -150,6 +157,20 @@ export function createGuestSession() {
 // ─────────────────────────────────────────────
 export function isAuthenticated() { return !!currentUser; }
 export function isGuest() { return !!guestSession && !currentUser; }
+
+export async function checkAiAccess() {
+    if (!currentUser || !currentUser.email) {
+        hasAiAccess = false;
+        return false;
+    }
+    try {
+        const { data, error } = await rjClient.from('ai_whitelist').select('email').eq('email', currentUser.email).single();
+        hasAiAccess = !!data && !error;
+    } catch (e) {
+        hasAiAccess = false;
+    }
+    return hasAiAccess;
+}
 
 export function getDisplayName() {
     if (currentProfile?.username) return currentProfile.username;

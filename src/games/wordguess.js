@@ -77,8 +77,14 @@ export function renderWordGuess(container, onBack, multiplayer) {
         guessed = new Set();
         gameOver = false;
         render();
+      } else if (action === 'sync_state') {
+        word = payload.payload.word;
+        guessed = new Set(payload.payload.guessedArr);
+        scores = payload.payload.scores;
+        gameOver = payload.payload.gameOver;
+        render();
       } else if (action === 'request_state' && isHost && word) {
-        channel.send({ type: 'broadcast', event: 'state', payload: { action: 'new_game', newWordStr: word } });
+        channel.send({ type: 'broadcast', event: 'state', payload: { action: 'sync_state', word, guessedArr: Array.from(guessed), scores, gameOver } });
       }
     }).subscribe((status) => {
       if (status === 'SUBSCRIBED') {
@@ -225,14 +231,15 @@ export function renderWordGuess(container, onBack, multiplayer) {
   }
 
   if (!isMp) {
-    newWord(false); // also starts AI timer
+    newWord(false); // starts AI timer
     render();
   } else if (isHost) {
-    // host waits for SUBSCRIBED before sending word
+    // Host generates word instantly, waits for guest to request state
+    newWord(false);
+    render();
   } else {
-    // guest shows loading until init arrives
+    // Guest shows loading screen until sync_state arrives
     container.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted);">📝 Connecting to game...</div>`;
   }
-  if (!isMp) render();
 }
 

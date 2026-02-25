@@ -7,12 +7,17 @@ import { renderHubPage } from './pages/hub.js';
 import { renderMatchmakingPage } from './pages/matchmaking.js';
 import { renderLobbyPage } from './pages/lobby.js';
 import { renderProfilePage } from './pages/profile.js';
+import { renderSettingsPage } from './pages/settings.js';
 import { renderChatPage, initChatDrawer } from './pages/chat.js';
 import { renderGamePage } from './pages/game.js';
 import { unsubscribeChat } from './chat.js';
 import { showToast } from './ui/toast.js';
 import { initSidebar, destroySidebar } from './ui/sidebar.js';
 import { ogClient } from './supabase.js';
+import { initTheme } from './theme.js';
+
+// Apply custom CSS variable themes immediately
+initTheme();
 
 // ─── Page Elements ───
 const pages = {
@@ -21,6 +26,7 @@ const pages = {
     matchmaking: document.getElementById('page-matchmaking'),
     lobby: document.getElementById('page-lobby'),
     profile: document.getElementById('page-profile'),
+    settings: document.getElementById('page-settings'),
     chat: document.getElementById('page-chat'),
     game: document.getElementById('page-game'),
 };
@@ -75,7 +81,12 @@ function navigateTo(page, opts = {}) {
             renderHubPage(
                 pages.hub,
                 (game) => { selectedGame = game; navigateTo('matchmaking'); }, // Multiplayer
-                (game) => { aiGame = game; navigateTo('game'); },              // VS AI
+                (game) => {
+                    aiGame = game;
+                    currentLobbyData = null;
+                    isHostCurrentLobby = false;
+                    navigateTo('game');
+                }, // VS AI
                 nav.onProfileClick,
                 nav.onChatClick
             );
@@ -125,6 +136,14 @@ function navigateTo(page, opts = {}) {
                 onSignOut: nav.onSignOut,
             });
             showPage('profile');
+            break;
+
+        case 'settings':
+            previousPage = activePage || 'hub';
+            renderSettingsPage(pages.settings, {
+                onBack: () => navigateTo(previousPage === 'settings' ? 'hub' : previousPage),
+            });
+            showPage('settings');
             break;
 
         case 'chat':

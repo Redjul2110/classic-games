@@ -33,7 +33,7 @@ export async function createLobby(gameType, maxPlayers, isPublic) {
             p_game_type: gameType,
             p_host_info: info,
             p_is_public: isPublic,
-            p_max_players: maxPlayers,
+            p_max_players: 2, // Hard limit to 2 players 
         });
         if (!error && data?.id) {
             currentLobbyId = data.id;
@@ -49,7 +49,7 @@ export async function createLobby(gameType, maxPlayers, isPublic) {
         host_id: info.id,
         status: 'waiting',
         is_public: isPublic,
-        max_players: maxPlayers,
+        max_players: 2, // Hard limit to 2 players
         players: [info],
         last_heartbeat: new Date().toISOString(),
     };
@@ -111,7 +111,7 @@ export async function joinPublicLobby(gameType) {
         .filter(l => l.is_public !== false)
         .find(l => {
             const count = Array.isArray(l.players) ? l.players.length : 0;
-            const max = l.max_players || 2;
+            const max = 2; // Strict limit
             return count < max;
         });
 
@@ -158,7 +158,7 @@ export async function joinPrivateLobby(lobbyCode) {
     if (findErr || !lobby) throw new Error('Lobby not found or already started.');
 
     const players = Array.isArray(lobby.players) ? lobby.players : [];
-    const max = lobby.max_players || 2;
+    const max = 2; // Strict limit
     if (players.length >= max) throw new Error('Lobby is full.');
 
     const { data, error } = await ogClient

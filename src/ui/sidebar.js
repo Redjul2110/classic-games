@@ -78,6 +78,7 @@ function bindNavLinks() {
   sidebarEl.querySelector('#sb-home')?.addEventListener('click', () => { closeSidebar(); _navigateFn?.('hub'); });
   sidebarEl.querySelector('#sb-chat')?.addEventListener('click', () => { closeSidebar(); _navigateFn?.('chat'); });
   sidebarEl.querySelector('#sb-profile')?.addEventListener('click', () => { closeSidebar(); _navigateFn?.('profile'); });
+  sidebarEl.querySelector('#sb-settings')?.addEventListener('click', () => { closeSidebar(); _navigateFn?.('settings'); });
   sidebarEl.querySelector('#sb-signout')?.addEventListener('click', () => { closeSidebar(); _signOutFn?.(); });
   sidebarEl.querySelector('#sidebar-close')?.addEventListener('click', closeSidebar);
 }
@@ -118,6 +119,11 @@ function buildSidebarHTML() {
       <button class="sidebar-nav-item" id="sb-profile">
         <span class="sb-icon">${UI_ICONS.profile}</span>
         <span class="sb-label">Profile</span>
+        <span class="sb-arrow">${UI_ICONS.chevron}</span>
+      </button>
+      <button class="sidebar-nav-item" id="sb-settings">
+        <span class="sb-icon">${UI_ICONS.settings}</span>
+        <span class="sb-label">Settings</span>
         <span class="sb-arrow">${UI_ICONS.chevron}</span>
       </button>
     </nav>

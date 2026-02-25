@@ -1,7 +1,8 @@
 // src/games/trivia.js
-// Trivia Blitz – 10 questions, timed, AI opponent with ~70% accuracy
+// Trivia Blitz – 10 questions, timed, dynamic multiplayer support (up to 5 players) & AI opponent
 
 import { showToast } from '../ui/toast.js';
+import { getUserId, getDisplayName } from '../auth.js';
 import { ogClient } from '../supabase.js';
 
 const QUESTIONS = [
@@ -25,64 +26,97 @@ const QUESTIONS = [
 export function renderTrivia(container, onBack, multiplayer) {
   const isMp = !!multiplayer;
   const isHost = isMp ? multiplayer.isHost : true;
+  const myId = isMp ? getUserId() : 'player';
 
   let selected = [];
   let qIndex = 0;
-  let scores = { player: 0, ai: 0 };
-  let answered = false;
-  let oppAnswered = false;
-  let oppResult = null; // { correct, score }
-  let myIdx = -1;
-  let myLastCorrect = false;
+
+  // Dynamic Multiplayer State
+  let playerIds = [];
+  let playerNames = {};
+  let scores = {};
+  let answers = {}; // Maps playerId -> { correct, score, optionIdx }
 
   let timerInterval = null;
   let timeLeft = 15;
   const QUESTION_TIME = 15;
-  const AI_ACCURACY = 0.70; // 70% correct
+  const AI_ACCURACY = 0.70;
 
   let channel = null;
 
   function initHost() {
     selected = [...QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 10);
+    if (isMp) {
+      playerIds = multiplayer.lobby.players.map(p => p.id);
+      multiplayer.lobby.players.forEach(p => playerNames[p.id] = p.name || 'Player');
+    } else {
+      playerIds = ['player', 'ai'];
+      playerNames = { player: 'You', ai: 'AI' };
+    }
+
+    playerIds.forEach(id => scores[id] = 0);
+
     if (isMp && channel) {
-      channel.send({ type: 'broadcast', event: 'init_state', payload: { selected } });
+      channel.send({ type: 'broadcast', event: 'init_state', payload: { selected, playerIds, playerNames } });
     }
   }
 
   if (isMp) {
     channel = ogClient.channel('game-' + multiplayer.lobby.id);
-    channel.on('broadcast', { event: 'init_state' }, (payload) => {
-      if (!isHost) {
-        selected = payload.payload.selected;
-        startGame();
-      }
-    }).on('broadcast', { event: 'request_state' }, () => {
-      // Guest requesting state – host re-sends
-      if (isHost && selected.length > 0) {
-        channel.send({ type: 'broadcast', event: 'init_state', payload: { selected } });
-      }
-    }).on('broadcast', { event: 'answer' }, (payload) => {
-      oppAnswered = true;
-      oppResult = payload.payload;
-      checkRoundEnd();
-    }).on('broadcast', { event: 'new_game' }, () => {
-      if (isHost) {
+    channel.on('broadcast', { event: 'state' }, (payload) => {
+      const { action, state, whoId, optionIdx } = payload.payload;
+
+      if (action === 'sync_state') {
+        if (!isHost) {
+          selected = state.selected;
+          playerIds = state.playerIds;
+          playerNames = state.playerNames;
+          scores = state.scores;
+          answers = state.answers;
+          qIndex = state.qIndex;
+          timeLeft = state.timeLeft;
+
+          if (state.roundResolved) {
+            resolveRoundGuest(state.qCorrect);
+          } else {
+            render();
+          }
+        }
+      } else if (action === 'submit_answer' && isHost) {
+        if (!answers[whoId] && !timerPendingResolve) {
+          processAnswer(whoId, optionIdx, selected[qIndex]);
+        }
+      } else if (action === 'request_state') {
+        if (isHost && selected.length > 0) {
+          syncHostState();
+        }
+      } else if (action === 'new_game' && isHost) {
         initHost();
         startGame();
       }
     }).subscribe((status) => {
       if (status === 'SUBSCRIBED') {
-        showToast('Connected to opponent! 🧠', 'success');
+        showToast('Connected to lobby! 🧠', 'success');
         if (isHost) {
           setTimeout(() => { initHost(); startGame(); }, 400);
         } else {
-          // Guest: request state from host
-          setTimeout(() => {
-            channel.send({ type: 'broadcast', event: 'request_state' });
-          }, 600);
+          setTimeout(() => { channel.send({ type: 'broadcast', event: 'state', payload: { action: 'request_state' } }); }, 600);
         }
       }
     });
+  }
+
+  function syncHostState(roundResolved = false, qCorrect = -1) {
+    if (isMp && isHost && channel) {
+      channel.send({
+        type: 'broadcast',
+        event: 'state',
+        payload: {
+          action: 'sync_state',
+          state: { selected, playerIds, playerNames, scores, answers, qIndex, timeLeft, roundResolved, qCorrect }
+        }
+      });
+    }
   }
 
   function handleExit() {
@@ -93,36 +127,53 @@ export function renderTrivia(container, onBack, multiplayer) {
 
   function startGame() {
     qIndex = 0;
-    scores = { player: 0, ai: 0 };
+    playerIds.forEach(id => scores[id] = 0);
     nextRound();
   }
 
+  let timerPendingResolve = false;
+
   function nextRound() {
-    answered = false;
-    oppAnswered = false;
-    oppResult = null;
-    myIdx = -1;
-    myLastCorrect = false;
+    answers = {};
+    timerPendingResolve = false;
 
     if (qIndex >= selected.length) {
       showFinalResult();
     } else {
       render();
-      startTimer();
+      if (!isMp || isHost) {
+        startTimer();
+      }
 
-      if (!isMp) {
-        // Let AI answer automatically after some delay
+      if (!isMp && playerIds.includes('ai')) {
         const aiDelay = Math.floor(Math.random() * 5000) + 2000;
         setTimeout(() => {
-          if (!answered && timeLeft > 0) {
-            oppAnswered = true;
+          if (!answers['ai'] && timeLeft > 0 && !timerPendingResolve) {
             const aiCorrect = Math.random() < AI_ACCURACY;
-            oppResult = { correct: aiCorrect, score: aiCorrect ? 10 + Math.floor(Math.random() * 5) : 0 };
-            checkRoundEnd();
+            const q = selected[qIndex];
+            const optIdx = aiCorrect ? q.correct : Math.floor(Math.random() * q.options.length);
+            processAnswer('ai', optIdx, q);
           }
         }, aiDelay);
       }
     }
+    if (isHost) syncHostState();
+  }
+
+  function resolveRoundGuest(qCorrect) {
+    // Guest receives round resolution visuals
+    timerPendingResolve = true;
+    render(); // Display ✅ ⏳ accurately
+    const q = selected[qIndex]; // Define q here for guest
+    container.querySelectorAll('.trivia-option').forEach((btn, i) => {
+      if (i === qCorrect) {
+        btn.classList.add('correct');
+        btn.style.border = '3px solid var(--green-primary)';
+      } else {
+        btn.classList.add('wrong');
+        btn.style.opacity = '0.5';
+      }
+    });
   }
 
   function render() {
@@ -131,6 +182,10 @@ export function renderTrivia(container, onBack, multiplayer) {
       return;
     }
     const q = selected[qIndex];
+
+    // Sort players by score for the display
+    const sortedPlayers = [...playerIds].sort((a, b) => scores[b] - scores[a]);
+
     container.innerHTML = `
       <div class="game-screen">
         <div class="game-screen-header">
@@ -138,21 +193,27 @@ export function renderTrivia(container, onBack, multiplayer) {
           <div class="game-screen-title">Trivia Blitz <span class="game-screen-badge ${isMp ? 'vs-player' : 'vs-ai'}">${isMp ? 'Multiplayer' : 'VS AI'}</span></div>
         </div>
         <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:24px;gap:16px;max-width:700px;margin:0 auto;width:100%;">
-          <div class="score-board">
-            <div class="score-item"><div class="score-value player-score">${scores.player}</div><div class="score-label">You</div></div>
-            <div class="score-divider">Q ${qIndex + 1}/10</div>
-            <div class="score-item"><div class="score-value ai-score">${scores.ai}</div><div class="score-label">${isMp ? 'Opponent' : 'AI [AI]'}</div></div>
+          
+          <div class="score-board" style="display:flex;flex-wrap:wrap;justify-content:center;gap:15px;width:100%;">
+            ${sortedPlayers.map((id, index) => `
+              <div class="score-item" style="border: ${id === myId ? '2px solid var(--primary-color)' : '1px solid var(--border-color)'}; padding:8px 16px; border-radius:12px;">
+                <div class="score-value" id="score-${id}">${scores[id]}</div>
+                <div class="score-label">${playerNames[id]} ${answers[id] ? '✅' : '⏳'}</div>
+              </div>
+            `).join('')}
+            <div class="score-divider" style="width:100%;text-align:center;">Question ${qIndex + 1} / 10</div>
           </div>
-          <div class="trivia-timer-bar">
+
+          <div class="trivia-timer-bar" style="max-width:400px;width:100%;">
             <div class="trivia-timer-fill" id="timer-fill" style="width:${(timeLeft / QUESTION_TIME) * 100}%"></div>
           </div>
-          <div class="trivia-question">${q.q}</div>
-          <div class="trivia-options">
+          <div class="trivia-question" style="text-align:center;font-size:1.4rem;font-weight:700;margin:20px 0;">${q.q}</div>
+          <div class="trivia-options" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:500px;">
             ${q.options.map((opt, i) => `
-              <button class="trivia-option" data-idx="${i}">${opt}</button>
+              <button class="trivia-option btn" style="text-align:left;height:auto;padding:16px;${answers[myId] && answers[myId].optionIdx === i ? 'border:3px solid var(--primary-color);' : ''}" data-idx="${i}" ${answers[myId] ? 'disabled' : ''}>${opt}</button>
             `).join('')}
           </div>
-          <div style="color:var(--text-muted);font-size:0.78rem;" id="time-text">${QUESTION_TIME - timeLeft}s elapsed</div>
+          <div style="color:var(--text-muted);font-size:0.78rem;margin-top:10px;" id="time-text">${QUESTION_TIME - timeLeft}s elapsed</div>
         </div>
       </div>
     `;
@@ -161,7 +222,7 @@ export function renderTrivia(container, onBack, multiplayer) {
 
     container.querySelectorAll('.trivia-option').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (answered) return;
+        if (answers[myId]) return;
         handleMyAnswer(parseInt(btn.dataset.idx), q);
       });
     });
@@ -172,19 +233,24 @@ export function renderTrivia(container, onBack, multiplayer) {
     timeLeft = QUESTION_TIME;
     timerInterval = setInterval(() => {
       timeLeft--;
-      const fill = container.querySelector('#timer-fill');
-      const text = container.querySelector('#time-text');
-      if (fill) fill.style.width = `${(timeLeft / QUESTION_TIME) * 100}%`;
-      if (text) text.textContent = `${QUESTION_TIME - timeLeft}s elapsed`;
+      if (isHost) syncHostState();
+      else render(); // for local AI mode
 
       if (timeLeft <= 0) {
         clearTimer();
-        if (!answered) handleMyAnswer(-1, selected[qIndex]);
-        if (isMp && !oppAnswered) {
-          oppAnswered = true;
-          oppResult = { correct: false, score: 0 };
+        if (isMp && isHost) {
+          // Force answer for any player who timed out
+          playerIds.forEach(id => {
+            if (!answers[id]) { answers[id] = { correct: false, score: 0, optionIdx: -1 }; }
+          });
+          checkRoundEnd();
+        } else if (!isMp) {
+          if (!answers[myId]) processAnswer(myId, -1, selected[qIndex]);
+          playerIds.forEach(id => {
+            if (!answers[id]) { answers[id] = { correct: false, score: 0, optionIdx: -1 }; }
+          });
+          checkRoundEnd();
         }
-        checkRoundEnd();
       }
     }, 1000);
   }
@@ -195,80 +261,103 @@ export function renderTrivia(container, onBack, multiplayer) {
   }
 
   function handleMyAnswer(idx, q) {
-    if (answered) return;
-    answered = true;
-    myIdx = idx;
-    myLastCorrect = idx === q.correct;
+    if (answers[myId] || timerPendingResolve) return;
 
-    const timingBonus = Math.max(0, timeLeft - 5);
-    const scoreBonus = myLastCorrect ? 10 + timingBonus : 0;
-    scores.player += scoreBonus;
-
-    if (!isMp) {
-      if (!oppAnswered) { // if ai hasn't answered yet, force it to answer now
-        oppAnswered = true;
-        const aiCorrect = Math.random() < AI_ACCURACY;
-        oppResult = { correct: aiCorrect, score: aiCorrect ? 10 + Math.floor(Math.random() * 5) : 0 };
-      }
-    } else {
-      if (channel) channel.send({ type: 'broadcast', event: 'answer', payload: { correct: myLastCorrect, score: scoreBonus } });
-
-      container.querySelectorAll('.trivia-option').forEach((btn, i) => {
-        btn.disabled = true;
-        if (i === idx) btn.style.border = '2px solid var(--primary-color)';
-      });
+    if (isMp && !isHost) {
+      // Guest sends answer to host
+      channel.send({ type: 'broadcast', event: 'state', payload: { action: 'submit_answer', whoId: myId, optionIdx: idx } });
+      // Optimistic UI lock
+      answers[myId] = { correct: false, score: 0, optionIdx: idx };
+      render();
+      return;
     }
-    checkRoundEnd();
+
+    processAnswer(myId, idx, q);
+  }
+
+  function processAnswer(whoId, idx, q) {
+    if (answers[whoId]) return;
+    const myCorrect = idx === q.correct;
+    const timingBonus = Math.max(0, timeLeft - 5);
+    const scoreBonus = myCorrect ? 10 + timingBonus : 0;
+
+    answers[whoId] = { correct: myCorrect, score: scoreBonus, optionIdx: idx };
+    scores[whoId] += scoreBonus;
+
+    if (isHost) syncHostState();
+
+    if (!isMp || isHost) {
+      checkRoundEnd();
+    }
+    render();
   }
 
   function checkRoundEnd() {
-    if (answered && oppAnswered) {
+    if (timerPendingResolve) return;
+    const allAnswered = playerIds.every(id => !!answers[id]);
+    if (allAnswered) {
       clearTimer();
+      timerPendingResolve = true;
       resolveRound();
     }
   }
 
   function resolveRound() {
     const q = selected[qIndex];
-    if (oppResult) scores.ai += oppResult.score;
+
+    // Add up scores from network players
+    playerIds.forEach(id => {
+      if (id !== myId && answers[id]) {
+        scores[id] += answers[id].score;
+      }
+    });
+
+    render(); // Force re-render of scoreboard and buttons with new scores
 
     container.querySelectorAll('.trivia-option').forEach((btn, i) => {
       btn.disabled = true;
       btn.style.border = 'none'; // reset selection border
+
+      const myAns = answers[myId];
       if (i === q.correct) btn.classList.add('correct');
-      else if (i === myIdx && !myLastCorrect) btn.classList.add('wrong');
+      else if (myAns && i === myAns.optionIdx && !myAns.correct) btn.classList.add('wrong');
     });
 
+    const myAns = answers[myId];
     showToast(
-      `You: ${myLastCorrect ? '✅' : myIdx === -1 ? '⏰' : '❌'} | ${isMp ? 'Opp' : 'AI'}: ${oppResult && oppResult.correct ? '✅' : '❌'}`,
-      myLastCorrect ? 'success' : 'error', 2000
+      `You: ${myAns && myAns.correct ? '✅' : myAns && myAns.optionIdx === -1 ? '⏰' : '❌'}`,
+      myAns && myAns.correct ? 'success' : 'error', 2000
     );
-
-    const pScoreEl = container.querySelector('.player-score');
-    const aScoreEl = container.querySelector('.ai-score');
-    if (pScoreEl) pScoreEl.textContent = scores.player;
-    if (aScoreEl) aScoreEl.textContent = scores.ai;
 
     setTimeout(() => {
       qIndex++;
       nextRound();
-    }, 2000);
+    }, 2500);
   }
 
   function showFinalResult() {
-    const winner = scores.player > scores.ai ? 'player' : scores.ai > scores.player ? 'ai' : 'draw';
-    if (winner === 'player') import('../ui/animations.js').then(({ triggerConfetti }) => triggerConfetti());
+    const sortedIds = [...playerIds].sort((a, b) => scores[b] - scores[a]);
+    const winnerId = sortedIds[0];
+    const isMeWinner = winnerId === myId;
+
+    if (isMeWinner) import('../ui/animations.js').then(({ triggerConfetti }) => triggerConfetti());
+
     container.innerHTML = `
       <div class="game-screen" style="align-items:center;justify-content:center;">
         <div style="text-align:center;padding:40px;max-width:480px;">
           <div style="font-size:4rem;margin-bottom:16px;">
-            ${winner === 'player' ? '★' : (isMp ? (winner === 'draw' ? '[DRAW]' : '😔') : (winner === 'draw' ? '[DRAW]' : '[AI]'))}
+            ${isMeWinner ? '★' : '😔'}
           </div>
           <div style="font-size:2rem;font-weight:900;margin-bottom:8px;">
-            ${winner === 'player' ? 'You Win!' : winner === 'ai' ? (isMp ? 'Opponent Wins!' : 'AI Wins!') : "It's a Draw!"}
+            ${isMeWinner ? 'You Win!' : `${playerNames[winnerId]} Wins!`}
           </div>
-          <div style="color:var(--text-secondary);margin-bottom:24px;">
-            Final Score: ${scores.player} – ${scores.ai}
+          <div style="color:var(--text-secondary);margin-bottom:24px;display:flex;flex-direction:column;gap:8px;">
+            ${sortedIds.map((id, index) => `
+                <div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.1);padding:4px 0;">
+                    <span>${index + 1}. ${playerNames[id]} ${id === myId ? '(You)' : ''}</span>
+                    <span style="font-weight:bold;">${scores[id]} pts</span>
+                </div>
+            `).join('')}
           </div>
           <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
             ${(!isMp || isHost) ? `<button class="btn btn-primary" id="play-again-btn">Play Again</button>` : `<div style="color:var(--text-muted)">Waiting for host to replay...</div>`}
