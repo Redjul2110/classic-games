@@ -13,6 +13,8 @@ export let currentProfile = null; // profiles table row
 export let guestSession = null;  // { id, username, is_guest: true }
 export let hasAiAccess = false;  // UI toggle for 💡 button
 
+let aiAccessInterval = null;
+
 // Listeners that get called when auth state changes
 const authListeners = [];
 export function onAuthChange(fn) { authListeners.push(fn); }
@@ -27,6 +29,11 @@ export async function initAuth() {
     if (data?.session) {
         currentUser = data.session.user;
         await loadProfile(currentUser.id);
+
+        // Initial AI Check & start polling
+        await checkAiAccess();
+        startAiPolling();
+
         notifyAuth();
         return;
     }
@@ -59,10 +66,12 @@ export async function initAuth() {
             currentUser = session.user;
             await loadProfile(currentUser.id);
             await checkAiAccess();
+            startAiPolling();
         } else {
             currentUser = null;
             currentProfile = null;
             hasAiAccess = false;
+            stopAiPolling();
         }
         notifyAuth();
     });
@@ -102,6 +111,7 @@ export async function signUp(email, password, username) {
         currentUser = data.user;
         await loadProfile(currentUser.id);
         await checkAiAccess();
+        startAiPolling();
         notifyAuth();
     }
     return data;
@@ -117,6 +127,7 @@ export async function signIn(email, password) {
     currentUser = data.user;
     await loadProfile(currentUser.id);
     await checkAiAccess();
+    startAiPolling();
     notifyAuth();
     return data;
 }
@@ -130,6 +141,7 @@ export async function signOut() {
     currentProfile = null;
     guestSession = null;
     hasAiAccess = false;
+    stopAiPolling();
     localStorage.removeItem('rjg_guest');
     notifyAuth();
 }
@@ -165,11 +177,29 @@ export async function checkAiAccess() {
     }
     try {
         const { data, error } = await rjClient.from('ai_whitelist').select('email').eq('email', currentUser.email).single();
+        const prevAccess = hasAiAccess;
         hasAiAccess = !!data && !error;
+        // If state changed mid-session due to polling, notify listeners (e.g., to hide/show UI buttons live)
+        if (prevAccess !== hasAiAccess) {
+            notifyAuth();
+        }
     } catch (e) {
         hasAiAccess = false;
     }
     return hasAiAccess;
+}
+
+function startAiPolling() {
+    stopAiPolling();
+    // Poll every 10 minutes (600,000 ms)
+    aiAccessInterval = setInterval(checkAiAccess, 600000);
+}
+
+function stopAiPolling() {
+    if (aiAccessInterval) {
+        clearInterval(aiAccessInterval);
+        aiAccessInterval = null;
+    }
 }
 
 export function getDisplayName() {

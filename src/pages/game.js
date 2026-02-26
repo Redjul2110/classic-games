@@ -12,6 +12,10 @@ import { renderWordGuess } from '../games/wordguess.js';
 import { renderRPS } from '../games/rockpaperscissors.js';
 import { renderTrivia } from '../games/trivia.js';
 import { renderNeonCards } from '../games/neoncards.js';
+import { renderPartyChess } from '../games/party_chess.js';
+import { renderPartyTrivia } from '../games/party_trivia.js';
+import { renderPartyNeonCards } from '../games/party_neoncards.js';
+import { renderPartyDraw } from '../games/party_draw.js';
 
 const RENDERERS = {
   chess: renderChess,
@@ -25,6 +29,10 @@ const RENDERERS = {
   rockpaperscissors: renderRPS,
   trivia: renderTrivia,
   neoncards: renderNeonCards,
+  party_chess: renderPartyChess,
+  party_trivia: renderPartyTrivia,
+  party_neoncards: renderPartyNeonCards,
+  party_draw: renderPartyDraw,
 };
 
 

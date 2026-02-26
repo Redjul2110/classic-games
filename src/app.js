@@ -8,6 +8,7 @@ import { renderMatchmakingPage } from './pages/matchmaking.js';
 import { renderLobbyPage } from './pages/lobby.js';
 import { renderProfilePage } from './pages/profile.js';
 import { renderSettingsPage } from './pages/settings.js';
+import { renderPartyPage } from './pages/party.js';
 import { renderChatPage, initChatDrawer } from './pages/chat.js';
 import { renderGamePage } from './pages/game.js';
 import { unsubscribeChat } from './chat.js';
@@ -27,6 +28,7 @@ const pages = {
     lobby: document.getElementById('page-lobby'),
     profile: document.getElementById('page-profile'),
     settings: document.getElementById('page-settings'),
+    party: document.getElementById('page-party'),
     chat: document.getElementById('page-chat'),
     game: document.getElementById('page-game'),
 };
@@ -146,6 +148,30 @@ function navigateTo(page, opts = {}) {
             showPage('settings');
             break;
 
+        case 'party':
+            previousPage = activePage || 'hub';
+            renderPartyPage(pages.party, {
+                onBack: () => navigateTo('hub'),
+                onPlayChess: () => {
+                    aiGame = { id: 'party_chess', name: 'Party Chess', supportsMp: true };
+                    navigateTo('game');
+                },
+                onPlayTrivia: () => {
+                    aiGame = { id: 'party_trivia', name: 'Party Trivia', supportsMp: true };
+                    navigateTo('game');
+                },
+                onPlayNeonCards: () => {
+                    aiGame = { id: 'party_neoncards', name: 'Party Neon Cards', supportsMp: true };
+                    navigateTo('game');
+                },
+                onPlayDraw: () => {
+                    aiGame = { id: 'party_draw', name: 'Party Draw', supportsMp: true };
+                    navigateTo('game');
+                }
+            });
+            showPage('party');
+            break;
+
         case 'chat':
             previousPage = activePage || 'hub';
             renderChatPage(pages.chat, {
@@ -159,9 +185,10 @@ function navigateTo(page, opts = {}) {
             if (!aiGame) { navigateTo('hub'); return; }
             const mpObj = currentLobbyData ? { lobby: currentLobbyData, isHost: isHostCurrentLobby } : null;
             renderGamePage(pages.game, aiGame, mpObj, () => {
+                const isPartyGame = aiGame && aiGame.id.startsWith('party_');
                 aiGame = null;
                 currentLobbyData = null;
-                navigateTo('hub');
+                navigateTo(isPartyGame ? 'party' : 'hub');
             });
             showPage('game');
             break;

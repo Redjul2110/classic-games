@@ -77,6 +77,7 @@ export function initSidebar(navigateFn, onSignOutFn) {
 function bindNavLinks() {
   sidebarEl.querySelector('#sb-home')?.addEventListener('click', () => { closeSidebar(); _navigateFn?.('hub'); });
   sidebarEl.querySelector('#sb-chat')?.addEventListener('click', () => { closeSidebar(); _navigateFn?.('chat'); });
+  sidebarEl.querySelector('#sb-party')?.addEventListener('click', () => { closeSidebar(); _navigateFn?.('party'); });
   sidebarEl.querySelector('#sb-profile')?.addEventListener('click', () => { closeSidebar(); _navigateFn?.('profile'); });
   sidebarEl.querySelector('#sb-settings')?.addEventListener('click', () => { closeSidebar(); _navigateFn?.('settings'); });
   sidebarEl.querySelector('#sb-signout')?.addEventListener('click', () => { closeSidebar(); _signOutFn?.(); });
@@ -114,6 +115,11 @@ function buildSidebarHTML() {
       <button class="sidebar-nav-item" id="sb-chat">
         <span class="sb-icon">${UI_ICONS.chat}</span>
         <span class="sb-label">Community Chat</span>
+        <span class="sb-arrow">${UI_ICONS.chevron}</span>
+      </button>
+      <button class="sidebar-nav-item" id="sb-party">
+        <span class="sb-icon">${UI_ICONS.party}</span>
+        <span class="sb-label">Party (30 Players)</span>
         <span class="sb-arrow">${UI_ICONS.chevron}</span>
       </button>
       <button class="sidebar-nav-item" id="sb-profile">
