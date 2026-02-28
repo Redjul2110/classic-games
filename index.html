@@ -48,9 +48,37 @@
     <div id="page-game" class="page hidden"></div>
   </div>
 
+  <!-- Google Translate Widget (hidden UI, translation only) -->
+  <div id="google_translate_element" style="display:none;position:absolute;left:-9999px;"></div>
+  <script type="text/javascript">
+    function googleTranslateElementInit() {
+      new google.translate.TranslateElement({ pageLanguage: 'en', layout: google.translate.TranslateElement.InlineLayout.SIMPLE, autoDisplay: false }, 'google_translate_element');
+    }
+    // Forcibly hide the Google Translate toolbar whenever it is injected
+    (function hideBanner() {
+      var style = document.createElement('style');
+      style.textContent = [
+        '.goog-te-banner-frame, .goog-te-banner-frame.skiptranslate { display:none!important; height:0!important; }',
+        'body { top:0!important; }',
+        '.goog-te-gadget { display:none!important; }',
+        '#goog-gt-tt, .goog-te-balloon-frame { display:none!important; }'
+      ].join('');
+      document.head.appendChild(style);
+
+      var observer = new MutationObserver(function () {
+        var banner = document.querySelector('.goog-te-banner-frame');
+        if (banner) { banner.style.display = 'none'; banner.style.height = '0'; }
+        document.body.style.top = '0';
+      });
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+    })();
+  </script>
+  <script type="text/javascript"
+    src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
   <!-- App Scripts -->
-  <script type="module" src="src/config.js?v=5"></script>
-  <script type="module" src="src/app.js?v=5"></script>
+  <script type="module" src="src/config.js?v=6"></script>
+  <script type="module" src="src/app.js?v=6"></script>
 </body>
 
 </html>

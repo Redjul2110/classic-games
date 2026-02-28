@@ -28,14 +28,17 @@ export function renderPartyPage(container, callbacks) {
           <p style="color:var(--text-secondary);">Play Mini-Games with up to 30 friends at once!</p>
         </div>
         
-        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:24px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:24px;">
           
           <!-- Create Party -->
           <div class="card" style="text-align:center;">
             <div style="font-size:3rem;margin-bottom:16px;">👑</div>
             <h3 style="margin-bottom:16px;">Host a Party</h3>
-            <p style="color:var(--text-secondary);margin-bottom:24px;">Create a new private lobby and invite your friends with a 5-letter code.</p>
-            <button class="btn btn-primary" id="btn-create-party" style="width:100%;">Create Party</button>
+            <p style="color:var(--text-secondary);margin-bottom:20px;">Create a private lobby. Choose your language — it sets the games' words & questions.</p>
+            <div style="display:flex;gap:8px;flex-direction:column;">
+              <button class="btn btn-primary" id="btn-create-party-en" style="width:100%;min-height:44px;">🇬🇧 Create English Party</button>
+              <button class="btn btn-secondary" id="btn-create-party-de" style="width:100%;min-height:44px;">🇩🇪 Create German Party</button>
+            </div>
           </div>
           
           <!-- Join Party -->
@@ -45,7 +48,7 @@ export function renderPartyPage(container, callbacks) {
             <p style="color:var(--text-secondary);margin-bottom:24px;">Got a code from a friend? Enter it below to join their lobby.</p>
             <div style="display:flex;gap:8px;">
                <input type="text" id="join-code-input" class="input-field" placeholder="e.g. A7X9K" maxlength="5" style="text-transform:uppercase;text-align:center;letter-spacing:4px;font-size:1.2rem;" />
-               <button class="btn btn-accent" id="btn-join-party">Join</button>
+               <button class="btn btn-accent" id="btn-join-party" style="min-height:44px;">Join</button>
             </div>
           </div>
           
@@ -65,15 +68,17 @@ export function renderPartyPage(container, callbacks) {
         onBack();
     });
 
-    container.querySelector('#btn-create-party').addEventListener('click', () => {
-        const code = generatePartyCode();
-        joinPartyRoom(code, true);
+    container.querySelector('#btn-create-party-en').addEventListener('click', () => {
+        joinPartyRoom(generatePartyCode(), true, 'en');
+    });
+    container.querySelector('#btn-create-party-de').addEventListener('click', () => {
+        joinPartyRoom(generatePartyCode(), true, 'de');
     });
 
     container.querySelector('#btn-join-party').addEventListener('click', () => {
         const val = container.querySelector('#join-code-input').value.trim().toUpperCase();
         if (val.length === 5) {
-            joinPartyRoom(val, false);
+            joinPartyRoom(val, false, 'en'); // lang will be overridden by host's start_game payload
         } else {
             showToast('Please enter a valid 5-letter code', 'error');
         }
@@ -97,7 +102,7 @@ export function renderPartyPage(container, callbacks) {
         return code;
     }
 
-    async function joinPartyRoom(code, asHost) {
+    async function joinPartyRoom(code, asHost, lang = 'en') {
         if (currentChannel) leaveParty();
 
         currentPartyCode = code;
@@ -148,21 +153,23 @@ export function renderPartyPage(container, callbacks) {
 
         // Game Listeners
         currentChannel.on('broadcast', { event: 'start_game' }, ({ payload }) => {
+            const gameLang = payload.lang || 'en';
+            window._partyData = {
+                channel: currentChannel, code: currentPartyCode, isHost, members: partyMembers,
+                lang: gameLang, matchCount: 0,
+                forceHome: () => { leaveParty(); onBack(); }
+            };
             if (payload.gameId === 'party_chess') {
                 showToast('Host started Party Chess!', 'success');
-                window._partyData = { channel: currentChannel, code: currentPartyCode, isHost, members: partyMembers };
                 onPlayChess();
             } else if (payload.gameId === 'party_trivia') {
                 showToast('Host started Party Trivia!', 'success');
-                window._partyData = { channel: currentChannel, code: currentPartyCode, isHost, members: partyMembers };
                 onPlayTrivia();
             } else if (payload.gameId === 'party_neoncards') {
                 showToast('Host started Party Neon Cards!', 'success');
-                window._partyData = { channel: currentChannel, code: currentPartyCode, isHost, members: partyMembers };
                 onPlayNeonCards();
             } else if (payload.gameId === 'party_draw') {
                 showToast('Host started Party Draw!', 'success');
-                window._partyData = { channel: currentChannel, code: currentPartyCode, isHost, members: partyMembers };
                 onPlayDraw();
             }
         });
@@ -277,29 +284,29 @@ export function renderPartyPage(container, callbacks) {
 
         startTrivia?.addEventListener('click', () => {
             if (!isHost || !currentChannel) return;
-            currentChannel.send({ type: 'broadcast', event: 'start_game', payload: { gameId: 'party_trivia' } });
-            window._partyData = { channel: currentChannel, code: currentPartyCode, isHost, members: partyMembers };
+            currentChannel.send({ type: 'broadcast', event: 'start_game', payload: { gameId: 'party_trivia', lang } });
+            window._partyData = { channel: currentChannel, code: currentPartyCode, isHost, members: partyMembers, lang, matchCount: 0, forceHome: () => { leaveParty(); onBack(); } };
             onPlayTrivia();
         });
 
         startNeon?.addEventListener('click', () => {
             if (!isHost || !currentChannel) return;
-            currentChannel.send({ type: 'broadcast', event: 'start_game', payload: { gameId: 'party_neoncards' } });
-            window._partyData = { channel: currentChannel, code: currentPartyCode, isHost, members: partyMembers };
+            currentChannel.send({ type: 'broadcast', event: 'start_game', payload: { gameId: 'party_neoncards', lang } });
+            window._partyData = { channel: currentChannel, code: currentPartyCode, isHost, members: partyMembers, lang, matchCount: 0, forceHome: () => { leaveParty(); onBack(); } };
             onPlayNeonCards();
         });
 
         startChess?.addEventListener('click', () => {
             if (!isHost || !currentChannel) return;
-            currentChannel.send({ type: 'broadcast', event: 'start_game', payload: { gameId: 'party_chess' } });
-            window._partyData = { channel: currentChannel, code: currentPartyCode, isHost, members: partyMembers };
+            currentChannel.send({ type: 'broadcast', event: 'start_game', payload: { gameId: 'party_chess', lang } });
+            window._partyData = { channel: currentChannel, code: currentPartyCode, isHost, members: partyMembers, lang, matchCount: 0, forceHome: () => { leaveParty(); onBack(); } };
             onPlayChess();
         });
 
         startDraw?.addEventListener('click', () => {
             if (!isHost || !currentChannel) return;
-            currentChannel.send({ type: 'broadcast', event: 'start_game', payload: { gameId: 'party_draw' } });
-            window._partyData = { channel: currentChannel, code: currentPartyCode, isHost, members: partyMembers };
+            currentChannel.send({ type: 'broadcast', event: 'start_game', payload: { gameId: 'party_draw', lang } });
+            window._partyData = { channel: currentChannel, code: currentPartyCode, isHost, members: partyMembers, lang, matchCount: 0, forceHome: () => { leaveParty(); onBack(); } };
             onPlayDraw();
         });
 

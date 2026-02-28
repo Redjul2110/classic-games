@@ -46,7 +46,6 @@ export function renderPartyChess(container, onBack) {
     container.innerHTML = `
         <div class="game-screen" style="max-width:1200px;margin:0 auto;display:flex;flex-direction:column;height:100vh;">
             <div class="game-screen-header">
-                <button class="btn btn-ghost btn-sm" id="pc-back">← Leave</button>
                 <div class="game-screen-title" style="font-size:clamp(0.8rem,3vw,1.1rem);">Party Chess <span class="game-screen-badge vs-player">${uids.length} Players</span></div>
                 
                 <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
@@ -94,8 +93,6 @@ export function renderPartyChess(container, onBack) {
     let aiHighlightFrom = null;
     let aiHighlightTo = null;
 
-    backBtn.addEventListener('click', () => { onBack(); });
-
     if (aiHintBtn) {
         aiHintBtn.addEventListener('click', () => {
             if (uids[currentTurnIndex] !== myId) {
@@ -116,9 +113,13 @@ export function renderPartyChess(container, onBack) {
 
     if (forceEndBtn) {
         forceEndBtn.addEventListener('click', () => {
-            if (confirm("Are you sure you want to end this match for everyone?")) {
-                channel.send({ type: 'broadcast', event: 'force_game_end' });
-                onBack();
+            if (confirm('Are you sure you want to end this match for everyone?')) {
+                const pd = window._partyData;
+                const nextCount = (pd?.matchCount || 0) + 1;
+                channel.send({ type: 'broadcast', event: 'force_game_end', payload: { matchCount: nextCount } });
+                if (pd) pd.matchCount = nextCount;
+                if (nextCount >= 2) pd?.forceHome();
+                else onBack();
             }
         });
     }
@@ -135,9 +136,14 @@ export function renderPartyChess(container, onBack) {
     });
 
     // ─── Network ───
-    channel.on('broadcast', { event: 'force_game_end' }, () => {
+    channel.on('broadcast', { event: 'force_game_end' }, ({ payload }) => {
+        if (isHost) return; // host already handled above
+        const pd = window._partyData;
+        const count = payload?.matchCount || 1;
+        if (pd) pd.matchCount = count;
         showToast('Host ended the match.', 'info');
-        onBack();
+        if (count >= 2) pd?.forceHome();
+        else onBack();
     });
 
     channel.on('broadcast', { event: 'chess_init' }, ({ payload }) => {

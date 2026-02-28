@@ -1,65 +1,93 @@
-// src/games/party_trivia.js
-// Battle Royale Trivia (Wer wird Millionär style) für bis zu 30 Spieler
-
+// src/games/party_trivia.js  –– Full Rewrite
 import { escapeHtml } from '../utils.js';
 import { showToast } from '../ui/toast.js';
 import { getUserId } from '../auth.js';
 
-// Pool of questions (easy -> hard)
-const QUESTIONS = [
-    // Level 1 (Easy)
-    { q: "Was ist die Hauptstadt von Deutschland?", a: ["Berlin", "München", "Hamburg", "Köln"], correct: 0 },
-    { q: "Wie viele Farben hat ein Regenbogen?", a: ["5", "7", "6", "8"], correct: 1 },
-    { q: "Welches Tier schnurrt?", a: ["Hund", "Katze", "Vogel", "Pferd"], correct: 1 },
-    // Level 2
-    { q: "Wer schrieb 'Romeo und Julia'?", a: ["Goethe", "Schiller", "Shakespeare", "J.K. Rowling"], correct: 2 },
-    { q: "Welcher Planet ist der rote Planet?", a: ["Venus", "Mars", "Jupiter", "Saturn"], correct: 1 },
-    { q: "Wie viele Bundesländer hat Deutschland?", a: ["14", "15", "16", "17"], correct: 2 },
-    // Level 3
-    { q: "Was ist die chemische Formel für Wasser?", a: ["CO2", "H2O", "O2", "NaCl"], correct: 1 },
-    { q: "Welcher Ozean ist der größte?", a: ["Atlantik", "Pazifik", "Indischer Ozean", "Arktischer Ozean"], correct: 1 },
-    { q: "Wie hieß der erste Mensch auf dem Mond?", a: ["Yuri Gagarin", "Buzz Aldrin", "Neil Armstrong", "Michael Collins"], correct: 2 },
-    // Level 4
-    { q: "In welchem Jahr fiel die Berliner Mauer?", a: ["1987", "1989", "1990", "1991"], correct: 1 },
-    { q: "Welches ist das härteste bekannte natürliche Material?", a: ["Gold", "Eisen", "Diamant", "Titan"], correct: 2 },
-    // Level 5 (Hard)
-    { q: "Wer malte die Mona Lisa?", a: ["Vincent van Gogh", "Pablo Picasso", "Leonardo da Vinci", "Michelangelo"], correct: 2 },
-    { q: "Wie lautet die Hauptstadt von Australien?", a: ["Sydney", "Melbourne", "Canberra", "Perth"], correct: 2 },
-    { q: "Wie viele Knochen hat ein erwachsener Mensch?", a: ["206", "208", "210", "212"], correct: 0 },
-    { q: "Wer ist der Autor von 'Der Herr der Ringe'?", a: ["George R.R. Martin", "J.R.R. Tolkien", "C.S. Lewis", "J.K. Rowling"], correct: 1 }
-];
+// ── Question Banks ─────────────────────────────────────────────────────────
+const QUESTIONS = {
+    en: [
+        { q: 'What is the capital of France?', a: ['Berlin', 'Paris', 'Rome', 'Madrid'], correct: 1 },
+        { q: 'How many sides does a hexagon have?', a: ['5', '6', '7', '8'], correct: 1 },
+        { q: 'What is the largest planet in our solar system?', a: ['Saturn', 'Neptune', 'Jupiter', 'Uranus'], correct: 2 },
+        { q: 'Which element has the chemical symbol "O"?', a: ['Gold', 'Oxygen', 'Osmium', 'Oganesson'], correct: 1 },
+        { q: 'How many continents are there on Earth?', a: ['5', '6', '7', '8'], correct: 2 },
+        { q: 'In which year did World War II end?', a: ['1943', '1944', '1945', '1946'], correct: 2 },
+        { q: 'What is the fastest land animal?', a: ['Lion', 'Cheetah', 'Horse', 'Greyhound'], correct: 1 },
+        { q: 'Who wrote "Romeo and Juliet"?', a: ['Dickens', 'Shakespeare', 'Tolstoy', 'Hemingway'], correct: 1 },
+        { q: 'What is the boiling point of water in Celsius?', a: ['90°', '95°', '100°', '105°'], correct: 2 },
+        { q: 'How many strings does a standard guitar have?', a: ['4', '5', '6', '7'], correct: 2 },
+        { q: 'Which planet is closest to the Sun?', a: ['Venus', 'Earth', 'Mars', 'Mercury'], correct: 3 },
+        { q: 'What is the largest ocean on Earth?', a: ['Atlantic', 'Indian', 'Arctic', 'Pacific'], correct: 3 },
+        { q: 'Who painted the Mona Lisa?', a: ['Michelangelo', 'Raphael', 'Da Vinci', 'Botticelli'], correct: 2 },
+        { q: 'How many bones are in the adult human body?', a: ['196', '206', '216', '226'], correct: 1 },
+        { q: 'What language has the most native speakers?', a: ['English', 'Spanish', 'Mandarin', 'Hindi'], correct: 2 },
+        { q: 'What is the square root of 144?', a: ['10', '11', '12', '13'], correct: 2 },
+        { q: 'In which country is the Amazon Rainforest primarily located?', a: ['Peru', 'Colombia', 'Venezuela', 'Brazil'], correct: 3 },
+        { q: 'What gas do plants absorb from the atmosphere?', a: ['Oxygen', 'Nitrogen', 'CO₂', 'Hydrogen'], correct: 2 },
+        { q: 'How many players are on a basketball team on the court?', a: ['4', '5', '6', '7'], correct: 1 },
+        { q: 'What is H₂O?', a: ['Salt', 'Oxygen', 'Water', 'Acid'], correct: 2 },
+        { q: 'Which country invented the internet?', a: ['UK', 'Japan', 'USA', 'Germany'], correct: 2 },
+        { q: 'How many hours are in a day?', a: ['12', '20', '24', '48'], correct: 2 },
+        { q: 'What is the currency of Japan?', a: ['Yuan', 'Won', 'Yen', 'Ringgit'], correct: 2 },
+        { q: 'What color is a ripe banana?', a: ['Green', 'Red', 'Yellow', 'Orange'], correct: 2 },
+        { q: 'How many minutes are in an hour?', a: ['30', '45', '60', '90'], correct: 2 },
+    ],
+    de: [
+        { q: 'Was ist die Hauptstadt von Deutschland?', a: ['München', 'Hamburg', 'Berlin', 'Köln'], correct: 2 },
+        { q: 'Wie viele Seiten hat ein Sechseck?', a: ['5', '6', '7', '8'], correct: 1 },
+        { q: 'Welcher ist der größte Planet in unserem Sonnensystem?', a: ['Saturn', 'Neptun', 'Jupiter', 'Uranus'], correct: 2 },
+        { q: 'Welches chemische Symbol hat Sauerstoff?', a: ['Sa', 'Au', 'O', 'H'], correct: 2 },
+        { q: 'Wie viele Kontinente gibt es auf der Erde?', a: ['5', '6', '7', '8'], correct: 2 },
+        { q: 'In welchem Jahr endete der Zweite Weltkrieg?', a: ['1943', '1944', '1945', '1946'], correct: 2 },
+        { q: 'Was ist das schnellste Landtier?', a: ['Löwe', 'Gepard', 'Pferd', 'Windhund'], correct: 1 },
+        { q: 'Wer schrieb "Romeo und Julia"?', a: ['Goethe', 'Shakespeare', 'Schiller', 'Brecht'], correct: 1 },
+        { q: 'Bei wie viel Grad Celsius siedet Wasser?', a: ['90°', '95°', '100°', '105°'], correct: 2 },
+        { q: 'Wie viele Saiten hat eine Standardgitarre?', a: ['4', '5', '6', '7'], correct: 2 },
+        { q: 'Welcher Planet ist der Sonne am nächsten?', a: ['Venus', 'Erde', 'Mars', 'Merkur'], correct: 3 },
+        { q: 'Was ist der größte Ozean der Erde?', a: ['Atlantik', 'Indik', 'Arktik', 'Pazifik'], correct: 3 },
+        { q: 'Wer malte die Mona Lisa?', a: ['Michelangelo', 'Raffael', 'da Vinci', 'Botticelli'], correct: 2 },
+        { q: 'Wie viele Knochen hat der erwachsene menschliche Körper?', a: ['196', '206', '216', '226'], correct: 1 },
+        { q: 'Welche Sprache hat die meisten Muttersprachler?', a: ['Englisch', 'Spanisch', 'Mandarin', 'Hindi'], correct: 2 },
+        { q: 'Was ist die Quadratwurzel von 144?', a: ['10', '11', '12', '13'], correct: 2 },
+        { q: 'In welchem Land liegt der Großteil des Amazonas-Regenwaldes?', a: ['Peru', 'Kolumbien', 'Venezuela', 'Brasilien'], correct: 3 },
+        { q: 'Welches Gas nehmen Pflanzen aus der Atmosphäre auf?', a: ['Sauerstoff', 'Stickstoff', 'CO₂', 'Wasserstoff'], correct: 2 },
+        { q: 'Wie viele Spieler stehen beim Basketball gleichzeitig auf dem Feld?', a: ['4', '5', '6', '7'], correct: 1 },
+        { q: 'Was ist H₂O?', a: ['Salz', 'Sauerstoff', 'Wasser', 'Säure'], correct: 2 },
+        { q: 'Wie viele Stunden hat ein Tag?', a: ['12', '20', '24', '48'], correct: 2 },
+        { q: 'Was ist die Währung von Japan?', a: ['Yuan', 'Won', 'Yen', 'Ringgit'], correct: 2 },
+        { q: 'Welche Farbe hat eine reife Banane?', a: ['Grün', 'Rot', 'Gelb', 'Orange'], correct: 2 },
+        { q: 'Wie viele Minuten hat eine Stunde?', a: ['30', '45', '60', '90'], correct: 2 },
+        { q: 'Was ist die Hauptstadt von Österreich?', a: ['Salzburg', 'Graz', 'Wien', 'Innsbruck'], correct: 2 },
+    ]
+};
 
 export function renderPartyTrivia(container, onBack) {
-    const partyData = window._partyData;
-    if (!partyData) {
-        onBack();
-        return;
-    }
+    const pd = window._partyData;
+    if (!pd) { onBack(); return; }
 
-    const { channel, code, isHost, members } = partyData;
+    const { channel, code, isHost, members, lang = 'en' } = pd;
     const myId = getUserId();
-    const uids = Object.keys(members).sort();
+    const uids = Object.keys(members);
+    const questionBank = QUESTIONS[lang] || QUESTIONS.en;
 
-    let state = 'waiting'; // waiting, playing, review, over
-    let playerMap = {}; // uid -> { username, alive }
-
-    uids.forEach(uid => {
-        playerMap[uid] = { username: members[uid].username, alive: true };
-    });
-
-    let currentQuestionIndex = 0;
-    let selectedQuestions = [];
-    let timeRemaining = 15;
+    // ── Game State ──────────────────────────────────────────────────────────
+    let state = 'lobby';  // 'lobby' | 'playing' | 'results'
+    let playerAlive = {};
+    uids.forEach(uid => { playerAlive[uid] = true; });
+    let currentQuestion = null;
+    let myAnswer = null;
+    let answers = {};      // uid -> { idx, timedOut }
+    let questionIndex = 0;
+    let sessionQuestions = [];
     let timerInterval = null;
-    let myAnswer = null; // index 0-3
-    let winnerId = null;
+    let timerSeconds = 15;
 
+    // ── Build UI ─────────────────────────────────────────────────────────────
     container.innerHTML = `
         <div class="game-screen" style="max-width:800px;margin:0 auto;height:100vh;display:flex;flex-direction:column;">
             <div class="game-screen-header">
-                <button class="btn btn-ghost btn-sm" id="pt-back">← Leave</button>
-                <div class="game-screen-title">Party Trivia <span class="game-screen-badge vs-player">${code}</span></div>
-                ${isHost ? `<button class="btn btn-sm btn-ghost danger" id="pt-force-end" style="margin-left:auto;">🛑 End Match</button>` : '<div style="margin-left:auto;"></div>'}
+                <div class="game-screen-title">🧠 Party Trivia <span class="game-screen-badge vs-player">${code}</span></div>
+                ${isHost ? `<button class="btn btn-sm btn-ghost danger" id="pt-force-end" style="margin-left:auto;">🛑 End</button>` : '<div style="margin-left:auto;"></div>'}
             </div>
             
             <div style="flex:1;padding:clamp(12px,4vw,24px);display:flex;flex-direction:column;align-items:center;overflow-y:auto;">
@@ -75,17 +103,23 @@ export function renderPartyTrivia(container, onBack) {
                 <!-- Play Area -->
                 <div id="pt-play-area" style="display:none;width:100%;max-width:600px;flex-direction:column;align-items:center;">
                     <div style="font-size:clamp(1.5rem,6vw,2.5rem);font-weight:900;margin-bottom:8px;color:var(--accent-color);" id="pt-timer">15</div>
-                    <div style="font-size:0.95rem;color:var(--text-secondary);margin-bottom:16px;">Round <span id="pt-round-num">1</span> / 15</div>
+                    <div style="font-size:0.95rem;color:var(--text-secondary);margin-bottom:16px;">
+                        Question <span id="pt-q-num">1</span> / ${Math.min(15, questionBank.length)}
+                    </div>
                     
                     <div id="pt-question" style="background:var(--bg-card);border:2px solid var(--border-color);border-radius:12px;padding:clamp(12px,4vw,24px);font-size:clamp(1rem,3.5vw,1.4rem);font-weight:bold;text-align:center;width:100%;margin-bottom:16px;">
-                        Question?
+                        ...
                     </div>
                     
                     <div id="pt-answers" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;">
-                        <button class="btn btn-secondary answer-btn" data-idx="0" style="min-height:52px;font-size:clamp(0.85rem,2.5vw,1rem);white-space:normal;word-break:break-word;">A</button>
-                        <button class="btn btn-secondary answer-btn" data-idx="1" style="min-height:52px;font-size:clamp(0.85rem,2.5vw,1rem);white-space:normal;word-break:break-word;">B</button>
-                        <button class="btn btn-secondary answer-btn" data-idx="2" style="min-height:52px;font-size:clamp(0.85rem,2.5vw,1rem);white-space:normal;word-break:break-word;">C</button>
-                        <button class="btn btn-secondary answer-btn" data-idx="3" style="min-height:52px;font-size:clamp(0.85rem,2.5vw,1rem);white-space:normal;word-break:break-word;">D</button>
+                        <button class="btn btn-secondary answer-btn" data-idx="0" style="min-height:52px;font-size:clamp(0.85rem,2.5vw,1rem);white-space:normal;word-break:break-word;"></button>
+                        <button class="btn btn-secondary answer-btn" data-idx="1" style="min-height:52px;font-size:clamp(0.85rem,2.5vw,1rem);white-space:normal;word-break:break-word;"></button>
+                        <button class="btn btn-secondary answer-btn" data-idx="2" style="min-height:52px;font-size:clamp(0.85rem,2.5vw,1rem);white-space:normal;word-break:break-word;"></button>
+                        <button class="btn btn-secondary answer-btn" data-idx="3" style="min-height:52px;font-size:clamp(0.85rem,2.5vw,1rem);white-space:normal;word-break:break-word;"></button>
+                    </div>
+
+                    <div id="pt-waiting" style="display:none;margin-top:16px;color:var(--text-secondary);font-size:0.9rem;text-align:center;">
+                        ⏳ Waiting for other players...
                     </div>
                 </div>
 
@@ -99,260 +133,260 @@ export function renderPartyTrivia(container, onBack) {
         </div>
     `;
 
-    const backBtn = container.querySelector('#pt-back');
-    const forceEndBtn = container.querySelector('#pt-force-end');
-    const startBtn = container.querySelector('#pt-start-btn');
+    // ── DOM refs ──────────────────────────────────────────────────────────────
     const statusDiv = container.querySelector('#pt-status');
     const playArea = container.querySelector('#pt-play-area');
-
     const timerDiv = container.querySelector('#pt-timer');
-    const roundSpan = container.querySelector('#pt-round-num');
+    const qNumSpan = container.querySelector('#pt-q-num');
     const questionDiv = container.querySelector('#pt-question');
     const answerBtns = container.querySelectorAll('.answer-btn');
+    const waitingDiv = container.querySelector('#pt-waiting');
     const playerListDiv = container.querySelector('#pt-player-list');
+    const startBtn = container.querySelector('#pt-start-btn');
+    const forceEndBtn = container.querySelector('#pt-force-end');
 
-    backBtn.addEventListener('click', () => {
-        if (timerInterval) clearInterval(timerInterval);
-        onBack();
-    });
-
-    if (forceEndBtn) {
-        forceEndBtn.addEventListener('click', () => {
-            if (confirm("End match for everyone?")) {
-                channel.send({ type: 'broadcast', event: 'force_game_end' });
-                if (timerInterval) clearInterval(timerInterval);
-                onBack();
-            }
-        });
-    }
-
-    startBtn.addEventListener('click', () => {
-        if (isHost) {
-            // Pick 15 random questions
-            const shuffled = [...QUESTIONS].sort(() => 0.5 - Math.random());
-            const sessionQs = shuffled.slice(0, 15);
-            channel.send({ type: 'broadcast', event: 'trivia_start', payload: { questions: sessionQs } });
-            startGame(sessionQs);
-        }
-    });
-
-    answerBtns.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            if (state !== 'playing' || myAnswer !== null || !playerMap[myId].alive) return;
-            const idx = parseInt(e.target.dataset.idx);
-            myAnswer = idx;
-
-            // Highlight selection
-            answerBtns.forEach(b => b.classList.remove('btn-primary'));
-            btn.classList.add('btn-primary');
-            btn.classList.remove('btn-secondary');
-
-            import('../ui/animations.js').then(({ playSound }) => playSound('place'));
-
-            // Send answer to host implicitly by just sending to everyone
-            channel.send({ type: 'broadcast', event: 'trivia_answer', payload: { uid: myId, answerIdx: idx } });
-        });
-    });
-
-    // ─── Network Channels ───
-    let currentRoundAnswers = {}; // uid -> answerIdx
-
-    channel.on('broadcast', { event: 'force_game_end' }, () => {
-        showToast('Host ended the match.', 'info');
-        if (timerInterval) clearInterval(timerInterval);
-        onBack();
-    });
-
-    channel.on('broadcast', { event: 'trivia_start' }, ({ payload }) => {
-        startGame(payload.questions);
-    });
-
-    channel.on('broadcast', { event: 'trivia_answer' }, ({ payload }) => {
-        currentRoundAnswers[payload.uid] = payload.answerIdx;
-    });
-
-    channel.on('broadcast', { event: 'trivia_round_result' }, ({ payload }) => {
-        handleRoundResult(payload.eliminatedUids, payload.correctIdx);
-    });
-
-    channel.on('broadcast', { event: 'trivia_next_round' }, () => {
-        startNextRound();
-    });
-
-    channel.on('broadcast', { event: 'trivia_end' }, ({ payload }) => {
-        endGame(payload.winnerId);
-    });
-
-    // ─── Logic ───
-    function startGame(qs) {
-        selectedQuestions = qs;
-        currentQuestionIndex = 0;
-
-        uids.forEach(uid => playerMap[uid].alive = true);
-        winnerId = null;
-
-        startBtn.style.display = 'none';
-        statusDiv.style.display = 'none';
-        playArea.style.display = 'flex';
-
-        startNextRound();
-    }
-
-    function startNextRound() {
-        if (currentQuestionIndex >= selectedQuestions.length) {
-            if (isHost) evaluateFinalWinner();
-            return;
-        }
-
-        state = 'playing';
-        myAnswer = null;
-        currentRoundAnswers = {};
-
-        const qObj = selectedQuestions[currentQuestionIndex];
-        roundSpan.textContent = currentQuestionIndex + 1;
-        questionDiv.textContent = qObj.q;
-
-        answerBtns.forEach((btn, i) => {
-            btn.textContent = qObj.a[i];
-            btn.className = 'btn btn-secondary answer-btn'; // reset
-            btn.disabled = !playerMap[myId].alive;
-        });
-
-        if (!playerMap[myId].alive) {
-            questionDiv.textContent = `(Spectating) ${qObj.q}`;
-        }
-
-        renderPlayerList();
-
-        timeRemaining = 15;
-        timerDiv.textContent = timeRemaining;
-        timerDiv.style.color = 'var(--accent-color)';
-
-        if (timerInterval) clearInterval(timerInterval);
-        timerInterval = setInterval(() => {
-            timeRemaining--;
-            timerDiv.textContent = timeRemaining;
-
-            if (timeRemaining <= 5) timerDiv.style.color = 'var(--red-primary)';
-
-            if (timeRemaining <= 0) {
-                clearInterval(timerInterval);
-                if (isHost) evaluateRound();
-            }
-        }, 1000);
-    }
-
-    function evaluateRound() {
-        const qObj = selectedQuestions[currentQuestionIndex];
-        const correct = qObj.correct;
-        const eliminatedUids = [];
-
-        // Check everyone who is alive, did they answer correctly?
-        uids.forEach(uid => {
-            if (playerMap[uid].alive) {
-                const ans = currentRoundAnswers[uid];
-                if (ans === undefined || ans !== correct) {
-                    eliminatedUids.push(uid);
-                }
-            }
-        });
-
-        channel.send({ type: 'broadcast', event: 'trivia_round_result', payload: { eliminatedUids, correctIdx: correct } });
-        handleRoundResult(eliminatedUids, correct);
-    }
-
-    function handleRoundResult(eliminatedUids, correctIdx) {
-        state = 'review';
-
-        // Highlight correct and wrong 
-        answerBtns.forEach((btn, i) => {
-            if (i === correctIdx) {
-                btn.className = 'btn answer-btn';
-                btn.style.backgroundColor = 'var(--green-primary)';
-                btn.style.color = 'white';
-            } else if (myAnswer === i && myAnswer !== correctIdx) {
-                btn.className = 'btn answer-btn';
-                btn.style.backgroundColor = 'var(--red-primary)';
-                btn.style.color = 'white';
-            } else {
-                btn.className = 'btn btn-secondary answer-btn';
-                btn.style.opacity = '0.5';
-            }
-        });
-
-        eliminatedUids.forEach(uid => {
-            playerMap[uid].alive = false;
-        });
-
-        renderPlayerList();
-
-        const alivePlayers = uids.filter(u => playerMap[u].alive);
-
-        if (eliminatedUids.includes(myId)) {
-            showToast('Falsche Antwort! Du bist ausgeschieden.', 'error');
-            import('../ui/animations.js').then(({ playSound }) => playSound('error'));
-        } else if (playerMap[myId].alive) {
-            import('../ui/animations.js').then(({ playSound }) => playSound('success'));
-        }
-
-        // Host handles next step
-        if (isHost) {
-            setTimeout(() => {
-                if (alivePlayers.length === 0) {
-                    // Everyone died this round, no winner
-                    channel.send({ type: 'broadcast', event: 'trivia_end', payload: { winnerId: null } });
-                    endGame(null);
-                } else if (alivePlayers.length === 1 && uids.length > 1) {
-                    // One winner remains
-                    channel.send({ type: 'broadcast', event: 'trivia_end', payload: { winnerId: alivePlayers[0] } });
-                    endGame(alivePlayers[0]);
-                } else {
-                    currentQuestionIndex++;
-                    channel.send({ type: 'broadcast', event: 'trivia_next_round', payload: {} });
-                    startNextRound();
-                }
-            }, 4000);
-        }
-    }
-
-    function evaluateFinalWinner() {
-        const alivePlayers = uids.filter(u => playerMap[u].alive);
-        const winId = alivePlayers.length > 0 ? alivePlayers[0] : null; // if multiple survived 15 rounds, give it to the first for simplicity
-        channel.send({ type: 'broadcast', event: 'trivia_end', payload: { winnerId: winId } });
-        endGame(winId);
-    }
-
-    function endGame(winId) {
-        state = 'over';
-        playArea.style.display = 'none';
-        statusDiv.style.display = 'block';
-
-        if (winId) {
-            statusDiv.innerHTML = `<span style="font-size:2rem;color:var(--primary-color)">🏆 ${escapeHtml(playerMap[winId].username)} GEWINNT DIE MILLION!</span>`;
-            if (winId === myId) {
-                import('../ui/animations.js').then(({ triggerConfetti }) => triggerConfetti());
-            }
-        } else {
-            statusDiv.innerHTML = `<span style="font-size:2rem;color:var(--red-primary)">💀 Alle wurden eliminiert!</span>`;
-        }
-
-        if (isHost) {
-            startBtn.style.display = 'inline-block';
-            startBtn.textContent = 'Neues Spiel starten';
-        }
-    }
-
-    function renderPlayerList() {
+    // ── Render player status ─────────────────────────────────────────────────
+    function renderPlayers() {
         playerListDiv.innerHTML = uids.map(uid => {
-            const p = playerMap[uid];
-            return `
-                 <div style="background:var(--bg-elevated);padding:4px 12px;border-radius:100px;opacity:${p.alive ? '1' : '0.3'};text-decoration:${p.alive ? 'none' : 'line-through'};border:1px solid ${p.alive ? 'var(--primary-color)' : 'transparent'};">
-                     ${escapeHtml(p.username)} ${p.alive ? '🟢' : '💀'}
-                 </div>
-            `;
+            const alive = playerAlive[uid];
+            const name = members[uid]?.username || uid;
+            return `<div style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:100px;border:1.5px solid ${alive ? 'var(--primary-color)' : 'rgba(255,255,255,0.1)'};opacity:${alive ? '1' : '0.4'};">
+                <span style="font-size:0.8rem;">${alive ? '💚' : '💀'}</span>
+                <span style="font-size:0.85rem;">${escapeHtml(name)}</span>
+            </div>`;
         }).join('');
     }
 
-    // Init display
-    renderPlayerList();
+    // ── Load a question ──────────────────────────────────────────────────────
+    function loadQuestion(q, idx, total) {
+        state = 'playing';
+        currentQuestion = q;
+        myAnswer = null;
+        answers = {};
+        timerSeconds = 15;
+
+        questionDiv.textContent = q.q;
+        qNumSpan.textContent = idx + 1;
+        answerBtns.forEach((btn, i) => {
+            btn.textContent = q.a[i];
+            btn.className = 'btn btn-secondary answer-btn';
+            btn.disabled = !playerAlive[myId];
+            btn.style.minHeight = '52px';
+            btn.style.fontSize = 'clamp(0.85rem,2.5vw,1rem)';
+            btn.style.whiteSpace = 'normal';
+            btn.style.wordBreak = 'break-word';
+        });
+
+        waitingDiv.style.display = 'none';
+        playArea.style.display = 'flex';
+        statusDiv.textContent = playerAlive[myId] ? '🎮 Pick your answer!' : '👻 Spectating...';
+
+        timerDiv.textContent = timerSeconds;
+
+        if (isHost) {
+            clearTimer();
+            timerInterval = setInterval(() => {
+                timerSeconds--;
+                timerDiv.textContent = timerSeconds;
+                channel.send({ type: 'broadcast', event: 'trivia_tick', payload: { s: timerSeconds } });
+                if (timerSeconds <= 0) {
+                    clearTimer();
+                    // Mark non-answerers as timed out
+                    uids.forEach(uid => {
+                        if (playerAlive[uid] && !(uid in answers)) {
+                            answers[uid] = { idx: -1, timedOut: true };
+                        }
+                    });
+                    resolveQuestion();
+                }
+            }, 1000);
+        }
+    }
+
+    function clearTimer() {
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    }
+
+    // ── Resolve the question (host only, then broadcast results) ────────────
+    function resolveQuestion() {
+        clearTimer();
+        if (!currentQuestion) return;
+
+        const correct = currentQuestion.correct;
+        const eliminated = [];
+
+        // Eliminate players who got wrong or timed out
+        uids.forEach(uid => {
+            if (!playerAlive[uid]) return;
+            const ans = answers[uid];
+            if (!ans || ans.timedOut || ans.idx !== correct) {
+                playerAlive[uid] = false;
+                eliminated.push(uid);
+            }
+        });
+
+        const aliveCount = uids.filter(u => playerAlive[u]).length;
+        channel.send({ type: 'broadcast', event: 'trivia_resolve', payload: { correct, eliminated, playerAlive: { ...playerAlive }, aliveCount } });
+        applyResolve({ correct, eliminated, playerAlive: { ...playerAlive }, aliveCount });
+    }
+
+    function applyResolve({ correct, eliminated, playerAlive: newAlive, aliveCount }) {
+        clearTimer();
+
+        // Color answer buttons
+        answerBtns.forEach((btn, i) => {
+            btn.disabled = true;
+            if (i === correct) btn.classList.add('btn-primary');
+            else if (myAnswer === i && i !== correct) btn.classList.add('btn-danger');
+        });
+
+        // Update alive state
+        Object.assign(playerAlive, newAlive);
+
+        if (eliminated.includes(myId)) {
+            statusDiv.innerHTML = `<span style="color:#FF3B30;">❌ Wrong! You've been eliminated.</span>`;
+            showToast('❌ Eliminated!', 'error');
+        } else if (playerAlive[myId]) {
+            statusDiv.innerHTML = `<span style="color:#34C759;">✅ Correct! You survive!</span>`;
+        }
+
+        renderPlayers();
+
+        if (aliveCount <= 1) {
+            setTimeout(() => showWinner(aliveCount), 1500);
+        } else if (isHost) {
+            // Next question after 3s
+            questionIndex++;
+            if (questionIndex >= sessionQuestions.length) {
+                // Ran out of questions
+                setTimeout(() => showWinner(aliveCount), 1500);
+            } else {
+                setTimeout(() => {
+                    const nextQ = sessionQuestions[questionIndex];
+                    channel.send({ type: 'broadcast', event: 'trivia_question', payload: { q: nextQ, idx: questionIndex, total: sessionQuestions.length } });
+                    loadQuestion(nextQ, questionIndex, sessionQuestions.length);
+                }, 3000);
+            }
+        }
+
+        waitingDiv.style.display = 'none';
+    }
+
+    function showWinner(aliveCount) {
+        clearTimer();
+        playArea.style.display = 'none';
+        state = 'results';
+
+        if (aliveCount === 0) {
+            statusDiv.innerHTML = `<span style="color:#FF3B30;font-size:1.2rem;">💀 Everyone eliminated! No winner!</span>`;
+        } else {
+            const winnerId = uids.find(u => playerAlive[u]);
+            const name = members[winnerId]?.username || winnerId;
+            statusDiv.innerHTML = `<span style="color:var(--primary-color);font-size:clamp(1rem,4vw,1.5rem);">🏆 ${escapeHtml(name)} wins Party Trivia!</span>`;
+            import('../ui/animations.js').then(({ triggerConfetti }) => triggerConfetti());
+        }
+        renderPlayers();
+    }
+
+    // ── Answer buttons ─────────────────────────────────────────────────────
+    answerBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            if (state !== 'playing' || myAnswer !== null || !playerAlive[myId]) return;
+            const idx = parseInt(e.currentTarget.dataset.idx);
+            myAnswer = idx;
+
+            answerBtns.forEach(b => b.classList.remove('btn-primary'));
+            e.currentTarget.classList.add('btn-primary');
+            e.currentTarget.classList.remove('btn-secondary');
+
+            answers[myId] = { idx, timedOut: false };
+            channel.send({ type: 'broadcast', event: 'trivia_answer', payload: { uid: myId, idx } });
+            waitingDiv.style.display = 'block';
+
+            import('../ui/animations.js').then(({ playSound }) => playSound('place'));
+
+            if (isHost) {
+                const aliveWhoCanAnswer = uids.filter(u => playerAlive[u]);
+                const allAnswered = aliveWhoCanAnswer.every(u => u in answers);
+                if (allAnswered) { clearTimer(); resolveQuestion(); }
+            }
+        });
+    });
+
+    // ── Network handlers ───────────────────────────────────────────────────
+    channel.on('broadcast', { event: 'trivia_tick' }, ({ payload }) => {
+        if (!isHost) {
+            timerSeconds = payload.s;
+            timerDiv.textContent = payload.s;
+        }
+    });
+
+    channel.on('broadcast', { event: 'trivia_question' }, ({ payload }) => {
+        if (!isHost) {
+            questionIndex = payload.idx;
+            loadQuestion(payload.q, payload.idx, payload.total);
+        }
+    });
+
+    channel.on('broadcast', { event: 'trivia_answer' }, ({ payload }) => {
+        if (!isHost) return;
+        answers[payload.uid] = { idx: payload.idx, timedOut: false };
+        const aliveWhoCanAnswer = uids.filter(u => playerAlive[u]);
+        const allAnswered = aliveWhoCanAnswer.every(u => u in answers);
+        if (allAnswered) { clearTimer(); resolveQuestion(); }
+    });
+
+    channel.on('broadcast', { event: 'trivia_resolve' }, ({ payload }) => {
+        if (isHost) return;
+        applyResolve(payload);
+    });
+
+    channel.on('broadcast', { event: 'trivia_start' }, ({ payload }) => {
+        if (isHost) return;
+        sessionQuestions = payload.questions;
+        uids.forEach(uid => { playerAlive[uid] = true; });
+        if (startBtn) startBtn.style.display = 'none';
+        container.querySelector('#pt-host-controls').style.display = 'none';
+        loadQuestion(sessionQuestions[0], 0, sessionQuestions.length);
+    });
+
+    channel.on('broadcast', { event: 'force_game_end' }, ({ payload }) => {
+        if (isHost) return;
+        clearTimer();
+        const pd2 = window._partyData;
+        const count = payload?.matchCount || 1;
+        if (pd2) pd2.matchCount = count;
+        showToast('Host ended the match.', 'info');
+        if (count >= 2) pd2?.forceHome();
+        else onBack();
+    });
+
+    // ── Host Start Button ──────────────────────────────────────────────────
+    if (startBtn) {
+        startBtn.addEventListener('click', () => {
+            if (!isHost) return;
+            const shuffled = [...questionBank].sort(() => 0.5 - Math.random());
+            sessionQuestions = shuffled.slice(0, Math.min(15, shuffled.length));
+            uids.forEach(uid => { playerAlive[uid] = true; });
+            channel.send({ type: 'broadcast', event: 'trivia_start', payload: { questions: sessionQuestions } });
+            container.querySelector('#pt-host-controls').style.display = 'none';
+            loadQuestion(sessionQuestions[0], 0, sessionQuestions.length);
+        });
+    }
+
+    if (forceEndBtn) {
+        forceEndBtn.addEventListener('click', () => {
+            if (confirm('End match for everyone?')) {
+                clearTimer();
+                const pd2 = window._partyData;
+                const nextCount = (pd2?.matchCount || 0) + 1;
+                channel.send({ type: 'broadcast', event: 'force_game_end', payload: { matchCount: nextCount } });
+                if (pd2) pd2.matchCount = nextCount;
+                if (nextCount >= 2) pd2?.forceHome();
+                else onBack();
+            }
+        });
+    }
+
+    renderPlayers();
 }

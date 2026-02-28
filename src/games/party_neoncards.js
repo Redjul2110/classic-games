@@ -35,7 +35,6 @@ export function renderPartyNeonCards(container, onBack) {
     container.innerHTML = `
         <div class="game-screen" style="max-width:1000px;margin:0 auto;height:100vh;display:flex;flex-direction:column;">
             <div class="game-screen-header">
-                <button class="btn btn-ghost btn-sm" id="pnc-back">← Leave</button>
                 <div class="game-screen-title">Party Neon Cards <span class="game-screen-badge vs-player">${uids.length} Players</span></div>
                  ${isHost ? `<button class="btn btn-sm btn-ghost danger" id="pnc-force-end" style="margin-left:auto;">🛑 End Match</button>` : '<div style="margin-left:auto;"></div>'}
             </div>
@@ -109,16 +108,28 @@ export function renderPartyNeonCards(container, onBack) {
     const colorModal = container.querySelector('#pnc-color-modal');
     const colorBtns = container.querySelectorAll('.color-btn');
 
-    backBtn.addEventListener('click', () => onBack());
-
     if (forceEndBtn) {
         forceEndBtn.addEventListener('click', () => {
-            if (confirm("End match for everyone?")) {
-                channel.send({ type: 'broadcast', event: 'force_game_end' });
-                onBack();
+            if (confirm('End match for everyone?')) {
+                const pd = window._partyData;
+                const nextCount = (pd?.matchCount || 0) + 1;
+                channel.send({ type: 'broadcast', event: 'force_game_end', payload: { matchCount: nextCount } });
+                if (pd) pd.matchCount = nextCount;
+                if (nextCount >= 2) pd?.forceHome();
+                else onBack();
             }
         });
     }
+
+    channel.on('broadcast', { event: 'force_game_end' }, ({ payload }) => {
+        if (isHost) return;
+        const pd = window._partyData;
+        const count = payload?.matchCount || 1;
+        if (pd) pd.matchCount = count;
+        showToast('Host ended the match.', 'info');
+        if (count >= 2) pd?.forceHome();
+        else onBack();
+    });
 
     // ─── INIT DATA ───
     uids.forEach(uid => {

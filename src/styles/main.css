@@ -3999,3 +3999,20 @@ img {
   border: 2px solid #f1c40f !important;
   z-index: 10;
 }
+
+/* ─── Hide Google Translate Toolbar ─── */
+.goog-te-banner-frame,
+.goog-te-banner-frame.skiptranslate {
+  display: none !important;
+  height: 0 !important;
+}
+body {
+  top: 0 !important;
+}
+.goog-te-gadget {
+  display: none !important;
+}
+#goog-gt-tt,
+.goog-te-balloon-frame {
+  display: none !important;
+}

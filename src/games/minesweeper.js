@@ -14,6 +14,7 @@ export function renderMinesweeper(container, onBack, multiplayer) {
     let won = false;
     let startTime = null;
     let timerInterval = null;
+    let flagMode = false; // for touch devices
 
     let channel = null;
 
@@ -199,7 +200,8 @@ export function renderMinesweeper(container, onBack, multiplayer) {
             <span>⏱ ${elapsed}s</span>
             <span>${won ? '★ Cleared!' : gameOver && !won ? '💥 Exploded!' : '[HIT] Playing'}</span>
           </div>
-          <div style="font-size:0.75rem;color:var(--text-muted);">Left-click: Reveal &nbsp;|&nbsp; Right-click: Flag</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);">${'ontouchstart' in window ? '👆 Tap: Reveal &nbsp;|&nbsp; Long-press: Flag' : 'Left-click: Reveal &nbsp;|&nbsp; Right-click: Flag'}</div>
+          ${'ontouchstart' in window ? `<button id="flag-toggle" class="btn btn-sm ${flagMode ? 'btn-accent' : 'btn-secondary'}" style="min-height:40px;min-width:120px;">${flagMode ? '🚩 Flag Mode ON' : '🔍 Reveal Mode'}</button>` : ''}
           <div class="ms-grid" id="ms-grid" style="grid-template-columns:repeat(${COLS},1fr);">
             ${board.length > 0 ? renderGrid() : Array.from({ length: ROWS * COLS }, (_, i) => {
             const r = Math.floor(i / COLS), c = i % COLS;
@@ -228,27 +230,84 @@ export function renderMinesweeper(container, onBack, multiplayer) {
         // Event delegation pattern using the container reduces listeners
         const grid = container.querySelector('#ms-grid');
         if (grid && !gameOver) {
+            const isTouchDevice = 'ontouchstart' in window;
+
+            // Mouse controls (desktop)
             grid.addEventListener('click', (e) => {
                 const cell = e.target.closest('.ms-cell');
                 if (!cell) return;
                 const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
-                if (isMp && !isHost) {
-                    channel.send({ type: 'broadcast', event: 'state', payload: { action: 'click', r, c } });
+                if (flagMode) {
+                    if (isMp && !isHost) channel.send({ type: 'broadcast', event: 'state', payload: { action: 'flag', r, c } });
+                    else processFlag(r, c);
                 } else {
-                    processClick(r, c);
+                    if (isMp && !isHost) channel.send({ type: 'broadcast', event: 'state', payload: { action: 'click', r, c } });
+                    else processClick(r, c);
                 }
             });
+
             grid.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 const cell = e.target.closest('.ms-cell');
                 if (!cell) return;
                 const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
-                if (isMp && !isHost) {
-                    channel.send({ type: 'broadcast', event: 'state', payload: { action: 'flag', r, c } });
-                } else {
-                    processFlag(r, c);
-                }
+                if (isMp && !isHost) channel.send({ type: 'broadcast', event: 'state', payload: { action: 'flag', r, c } });
+                else processFlag(r, c);
             });
+
+            // Touch controls: short tap = reveal/flag-mode, long press = flag
+            if (isTouchDevice) {
+                let longPressTimer = null;
+                let touchMoved = false;
+
+                grid.addEventListener('touchstart', (e) => {
+                    const cell = e.target.closest('.ms-cell');
+                    if (!cell) return;
+                    touchMoved = false;
+                    longPressTimer = setTimeout(() => {
+                        if (touchMoved) return;
+                        const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
+                        if (isMp && !isHost) channel.send({ type: 'broadcast', event: 'state', payload: { action: 'flag', r, c } });
+                        else processFlag(r, c);
+                        longPressTimer = null;
+                        // vibrate feedback
+                        if (navigator.vibrate) navigator.vibrate(40);
+                    }, 500);
+                }, { passive: true });
+
+                grid.addEventListener('touchmove', () => {
+                    touchMoved = true;
+                    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+                }, { passive: true });
+
+                grid.addEventListener('touchend', (e) => {
+                    if (longPressTimer) {
+                        // Short tap - was not a long press
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                        if (touchMoved) return;
+                        e.preventDefault();
+                        const cell = e.target.closest('.ms-cell') || document.elementFromPoint(
+                            e.changedTouches[0].clientX, e.changedTouches[0].clientY
+                        )?.closest('.ms-cell');
+                        if (!cell) return;
+                        const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
+                        if (flagMode) {
+                            if (isMp && !isHost) channel.send({ type: 'broadcast', event: 'state', payload: { action: 'flag', r, c } });
+                            else processFlag(r, c);
+                        } else {
+                            if (isMp && !isHost) channel.send({ type: 'broadcast', event: 'state', payload: { action: 'click', r, c } });
+                            else processClick(r, c);
+                        }
+                    }
+                });
+
+                // Flag mode toggle
+                container.querySelector('#flag-toggle')?.addEventListener('click', () => {
+                    flagMode = !flagMode;
+                    render();
+                });
+            }
         }
     }
 

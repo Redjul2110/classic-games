@@ -20,6 +20,16 @@ export function renderSettingsPage(container, { onBack }) {
         </div>
 
         <div style="max-width: 600px; margin: 0 auto; padding: 24px;">
+
+            <!-- Language Section -->
+            <div class="auth-card" style="margin-bottom: 24px;">
+                <h3 style="margin-bottom: 8px; font-size: 1.2rem; color: var(--red-primary);">🌐 Language</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 0.9rem;">
+                    Choose your language. The site will be translated automatically.
+                </p>
+                <div id="lang-picker" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;"></div>
+            </div>
+
             <div class="auth-card" style="margin-bottom: 24px;">
                 <h3 style="margin-bottom: 16px; font-size: 1.2rem; color: var(--red-primary);">Customize Colors</h3>
                 <p style="color: var(--text-secondary); margin-bottom: 24px; font-size: 0.9rem;">
@@ -46,6 +56,77 @@ export function renderSettingsPage(container, { onBack }) {
             </div>
         </div>
     `;
+
+    // ── Custom Language Picker ────────────────────────────────────────────
+    const LANGUAGES = [
+        { code: 'en', flag: '🇬🇧', label: 'English' },
+        { code: 'de', flag: '🇩🇪', label: 'Deutsch' },
+        { code: 'fr', flag: '🇫🇷', label: 'Français' },
+        { code: 'es', flag: '🇪🇸', label: 'Español' },
+        { code: 'it', flag: '🇮🇹', label: 'Italiano' },
+        { code: 'pt', flag: '🇵🇹', label: 'Português' },
+        { code: 'nl', flag: '🇳🇱', label: 'Nederlands' },
+        { code: 'pl', flag: '🇵🇱', label: 'Polski' },
+        { code: 'ru', flag: '🇷🇺', label: 'Русский' },
+        { code: 'tr', flag: '🇹🇷', label: 'Türkçe' },
+        { code: 'zh-CN', flag: '🇨🇳', label: '中文' },
+        { code: 'ja', flag: '🇯🇵', label: '日本語' },
+        { code: 'ko', flag: '🇰🇷', label: '한국어' },
+        { code: 'ar', flag: '🇸🇦', label: 'العربية' },
+    ];
+
+    const savedLang = localStorage.getItem('rjg_lang') || 'en';
+    const picker = container.querySelector('#lang-picker');
+
+    // Whitelist of allowed lang codes — validated before any cookie/localStorage write
+    const VALID_LANG_CODES = new Set(LANGUAGES.map(l => l.code));
+
+    function setLanguage(code) {
+        // Security: reject any code not in our fixed whitelist
+        if (!VALID_LANG_CODES.has(code)) return;
+
+        localStorage.setItem('rjg_lang', code);
+        // Render updated buttons
+        renderLangButtons(code);
+        // Trigger Google Translate via the hidden widget select
+        const gtSelect = document.querySelector('#google_translate_element select');
+        if (gtSelect) {
+            gtSelect.value = code;
+            gtSelect.dispatchEvent(new Event('change'));
+        } else {
+            // Fallback: set cookie and reload (Google Translate reads googtrans cookie)
+            if (code === 'en') {
+                document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+                document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname}`;
+            } else {
+                document.cookie = `googtrans=/en/${code}; path=/`;
+                document.cookie = `googtrans=/en/${code}; path=/; domain=${window.location.hostname}`;
+            }
+            window.location.reload();
+        }
+    }
+
+    function renderLangButtons(activeLang) {
+        picker.innerHTML = LANGUAGES.map(l => {
+            const isActive = l.code === activeLang;
+            return `<button data-lang="${l.code}" style="
+                display:flex;flex-direction:column;align-items:center;gap:4px;
+                padding:10px 6px;border-radius:10px;cursor:pointer;border:2px solid ${isActive ? 'var(--primary-color)' : 'rgba(255,255,255,0.08)'};
+                background:${isActive ? 'rgba(var(--primary-rgb,220,38,38),0.15)' : 'var(--bg-secondary)'};
+                color:var(--text-primary);font-size:0.78rem;font-weight:${isActive ? '700' : '400'};
+                transition:all 0.15s;min-height:60px;
+            ">
+                <span style="font-size:1.6rem;line-height:1;">${l.flag}</span>
+                <span>${l.label}</span>
+            </button>`;
+        }).join('');
+
+        picker.querySelectorAll('button[data-lang]').forEach(btn => {
+            btn.addEventListener('click', () => setLanguage(btn.dataset.lang));
+        });
+    }
+
+    renderLangButtons(savedLang);
 
     // Event Listeners for Color Pickers (Live Preview)
     Object.keys(DEFAULT_THEME).forEach(key => {
