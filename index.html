@@ -1,84 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="google-site-verification" content="uorp-2o6cyD8nZlwgHHgDZ-kD1nvN3yCkjA3XuYJnv4" />
-  <meta name="msvalidate.01" content="8A100A9890A9AB172E8983E45432A263" />
-  <title>RedJGames Classic</title>
-  <meta name="description"
-    content="RedJGames Classic – Play 10 classic online multiplayer games. Free to play, no download required." />
-  <meta name="keywords"
-    content="RedJGames, Redjul2110, games, classic games, free online games, multiplayer games, browser games, board games, card games" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap"
-    rel="stylesheet" />
-  <link rel="stylesheet" href="src/styles/main.css?v=5" />
-  <!-- Supabase CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Canvas Confetti -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Server Error</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #ffffff;
+        }
+
+        .container {
+            text-align: center;
+            padding: 40px;
+            max-width: 600px;
+        }
+
+        .error-code {
+            font-size: 120px;
+            font-weight: bold;
+            color: #e94560;
+            text-shadow: 0 0 30px rgba(233, 69, 96, 0.5);
+            margin-bottom: 20px;
+            letter-spacing: 10px;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 30px;
+            color: #eaeaea;
+        }
+
+        .message {
+            font-size: 18px;
+            line-height: 1.8;
+            color: #a0a0a0;
+            margin-bottom: 40px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(233, 69, 96, 0.3);
+            border-top: 4px solid #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 30px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .footer {
+            margin-top: 50px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
 </head>
-
 <body>
-  <div id="app">
-    <!-- Loading Spinner -->
-    <div id="loading-screen" class="loading-screen">
-      <h1 class="loading-logo">
-        <span class="logo-red">RedJGames</span>
-        <span class="logo-sub">CLASSIC</span>
-      </h1>
-      <div class="loading-spinner"></div>
+    <div class="container">
+        <div class="error-code">404</div>
+        <h1>Server Error</h1>
+        <div class="spinner"></div>
+        <p class="message">
+            We're sorry, we're currently experiencing server issues.<br>
+            Please wait a few minutes...<br>
+            It may take up to 3 hours until all errors are resolved.
+        </p>
+        <div class="footer">
+            Please try again later
+        </div>
     </div>
-
-    <!-- App Pages (dynamically shown/hidden) -->
-    <div id="page-login" class="page hidden"></div>
-    <div id="page-hub" class="page hidden"></div>
-    <div id="page-matchmaking" class="page hidden"></div>
-    <div id="page-lobby" class="page hidden"></div>
-    <div id="page-party" class="page hidden"></div>
-    <div id="page-profile" class="page hidden"></div>
-    <div id="page-settings" class="page hidden"></div>
-    <div id="page-chat" class="page hidden"></div>
-    <div id="page-game" class="page hidden"></div>
-  </div>
-
-  <!-- Google Translate Widget (hidden UI, translation only) -->
-  <div id="google_translate_element" style="display:none;position:absolute;left:-9999px;"></div>
-  <script type="text/javascript">
-    function googleTranslateElementInit() {
-      new google.translate.TranslateElement({ pageLanguage: 'en', layout: google.translate.TranslateElement.InlineLayout.SIMPLE, autoDisplay: false }, 'google_translate_element');
-    }
-    // Forcibly hide the Google Translate toolbar whenever it is injected
-    (function hideBanner() {
-      var style = document.createElement('style');
-      style.textContent = [
-        '.goog-te-banner-frame, .goog-te-banner-frame.skiptranslate { display:none!important; height:0!important; }',
-        'body { top:0!important; }',
-        '.goog-te-gadget { display:none!important; }',
-        '#goog-gt-tt, .goog-te-balloon-frame { display:none!important; }'
-      ].join('');
-      document.head.appendChild(style);
-
-      var observer = new MutationObserver(function () {
-        var banner = document.querySelector('.goog-te-banner-frame');
-        if (banner) { banner.style.display = 'none'; banner.style.height = '0'; }
-        document.body.style.top = '0';
-      });
-      observer.observe(document.body, { childList: true, subtree: true, attributes: true });
-    })();
-  </script>
-  <script type="text/javascript"
-    src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-
-  <!-- App Scripts -->
-  <script type="module" src="src/config.js?v=6"></script>
-  <script type="module" src="src/app.js?v=6"></script>
 </body>
-
 </html>
+
