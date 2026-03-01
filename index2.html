@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Server Error</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #ffffff;
+        }
+
+        .container {
+            text-align: center;
+            padding: 40px;
+            max-width: 600px;
+        }
+
+        .error-code {
+            font-size: 120px;
+            font-weight: bold;
+            color: #e94560;
+            text-shadow: 0 0 30px rgba(233, 69, 96, 0.5);
+            margin-bottom: 20px;
+            letter-spacing: 10px;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 30px;
+            color: #eaeaea;
+        }
+
+        .message {
+            font-size: 18px;
+            line-height: 1.8;
+            color: #a0a0a0;
+            margin-bottom: 40px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(233, 69, 96, 0.3);
+            border-top: 4px solid #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 30px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .footer {
+            margin-top: 50px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-code">404</div>
+        <h1>Server Error</h1>
+        <div class="spinner"></div>
+        <p class="message">
+            We're sorry, we're currently experiencing server issues.<br>
+            Please wait a few minutes...<br>
+            It may take up to 3 hours until all errors are resolved.
+        </p>
+        <div class="footer">
+            Please try again later
+        </div>
+    </div>
+</body>
+</html>
+
